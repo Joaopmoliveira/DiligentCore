@@ -76,15 +76,12 @@ struct TextureDesc DILIGENT_DERIVE(DeviceObjectAttribs)
     /// Only 2D textures or 2D texture arrays can be multisampled.
     Uint32          SampleCount DEFAULT_INITIALIZER(1);
 
+    /// Bind flags, see Diligent::BIND_FLAGS for details. \n
+    /// Use IRenderDevice::GetTextureFormatInfoExt() to check if bind flags is supported.
+    BIND_FLAGS      BindFlags   DEFAULT_INITIALIZER(BIND_NONE);
+
     /// Texture usage. See Diligent::USAGE for details.
     USAGE           Usage       DEFAULT_INITIALIZER(USAGE_DEFAULT);
-
-    /// Bind flags, see Diligent::BIND_FLAGS for details. \n
-    /// The following bind flags are allowed:
-    /// Diligent::BIND_SHADER_RESOURCE, Diligent::BIND_RENDER_TARGET, Diligent::BIND_DEPTH_STENCIL,
-    /// Diligent::and BIND_UNORDERED_ACCESS. \n
-    /// Multisampled textures cannot have Diligent::BIND_UNORDERED_ACCESS flag set
-    BIND_FLAGS      BindFlags   DEFAULT_INITIALIZER(BIND_NONE);
 
     /// CPU access flags or 0 if no CPU access is allowed,
     /// see Diligent::CPU_ACCESS_FLAGS for details.
@@ -92,6 +89,9 @@ struct TextureDesc DILIGENT_DERIVE(DeviceObjectAttribs)
 
     /// Miscellaneous flags, see Diligent::MISC_TEXTURE_FLAGS for details.
     MISC_TEXTURE_FLAGS MiscFlags        DEFAULT_INITIALIZER(MISC_TEXTURE_FLAG_NONE);
+    
+    /// AZ TODO
+    SPARSE_RESOURCE_FLAGS SparseFlags   DEFAULT_INITIALIZER(SPARSE_RESOURCE_FLAG_NONE);
 
     /// Optimized clear value
     OptimizedClearValue ClearValue;
@@ -284,6 +284,23 @@ struct MappedTextureSubresource
 };
 typedef struct MappedTextureSubresource MappedTextureSubresource;
 
+/// AZ TODO
+struct TextureSparseParameters
+{
+    Uint64  MemorySize      DEFAULT_INITIALIZER(0);
+
+    Uint64  MipTailOffset   DEFAULT_INITIALIZER(0);
+    Uint32  MipTailSize     DEFAULT_INITIALIZER(0);
+    Uint32  MipTailStride   DEFAULT_INITIALIZER(0);
+    Uint32  FirstMipInTail  DEFAULT_INITIALIZER(0);
+
+    Uint32  TileSize[3]     DEFAULT_INITIALIZER({});
+    Uint32  MemoryAlignment DEFAULT_INITIALIZER(0);
+
+    // AZ TODO: flags
+};
+typedef struct TextureSparseParameters TextureSparseParameters;
+
 #define DILIGENT_INTERFACE_NAME ITexture
 #include "../../../Primitives/interface/DefineInterfaceHelperMacros.h"
 
@@ -352,6 +369,9 @@ DILIGENT_BEGIN_INTERFACE(ITexture, IDeviceObject)
 
     /// Returns the internal texture state
     VIRTUAL RESOURCE_STATE METHOD(GetState)(THIS) CONST PURE;
+
+    /// AZ TODO
+    VIRTUAL TextureSparseParameters METHOD(GetSparseProperties)(THIS) CONST PURE;
 };
 DILIGENT_END_INTERFACE
 
@@ -363,11 +383,12 @@ DILIGENT_END_INTERFACE
 
 #    define ITexture_GetDesc(This) (const struct TextureDesc*)IDeviceObject_GetDesc(This)
 
-#    define ITexture_CreateView(This, ...)     CALL_IFACE_METHOD(Texture, CreateView,      This, __VA_ARGS__)
-#    define ITexture_GetDefaultView(This, ...) CALL_IFACE_METHOD(Texture, GetDefaultView,  This, __VA_ARGS__)
-#    define ITexture_GetNativeHandle(This)     CALL_IFACE_METHOD(Texture, GetNativeHandle, This)
-#    define ITexture_SetState(This, ...)       CALL_IFACE_METHOD(Texture, SetState,        This, __VA_ARGS__)
-#    define ITexture_GetState(This)            CALL_IFACE_METHOD(Texture, GetState,        This)
+#    define ITexture_CreateView(This, ...)     CALL_IFACE_METHOD(Texture, CreateView,          This, __VA_ARGS__)
+#    define ITexture_GetDefaultView(This, ...) CALL_IFACE_METHOD(Texture, GetDefaultView,      This, __VA_ARGS__)
+#    define ITexture_GetNativeHandle(This)     CALL_IFACE_METHOD(Texture, GetNativeHandle,     This)
+#    define ITexture_SetState(This, ...)       CALL_IFACE_METHOD(Texture, SetState,            This, __VA_ARGS__)
+#    define ITexture_GetState(This)            CALL_IFACE_METHOD(Texture, GetState,            This)
+#    define ITexture_GetSparseProperties(This) CALL_IFACE_METHOD(Texture, GetSparseProperties, This)
 
 // clang-format on
 

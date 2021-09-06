@@ -47,6 +47,22 @@ static const INTERFACE_ID IID_CommandQueueD3D12 =
 
 // clang-format off
 
+/// AZ TODO
+struct ResourceTileMappings
+{
+    ID3D12Resource*                        pResource                       DEFAULT_INITIALIZER(nullptr);
+    UINT                                   NumResourceRegions              DEFAULT_INITIALIZER(0);
+    const D3D12_TILED_RESOURCE_COORDINATE* pResourceRegionStartCoordinates DEFAULT_INITIALIZER(nullptr);
+    const D3D12_TILE_REGION_SIZE*          pResourceRegionSizes            DEFAULT_INITIALIZER(nullptr);
+    ID3D12Heap*                            pHeap                           DEFAULT_INITIALIZER(nullptr);
+    UINT                                   NumRanges                       DEFAULT_INITIALIZER(0);
+    const D3D12_TILE_RANGE_FLAGS*          pRangeFlags                     DEFAULT_INITIALIZER(nullptr);
+    const UINT*                            pHeapRangeStartOffsets          DEFAULT_INITIALIZER(nullptr);
+    const UINT*                            pRangeTileCounts                DEFAULT_INITIALIZER(nullptr);
+    D3D12_TILE_MAPPING_FLAGS               Flags                           DEFAULT_INITIALIZER(D3D12_TILE_MAPPING_FLAG_NONE);
+};
+typedef struct ResourceTileMappings ResourceTileMappings;
+
 /// Command queue interface
 DILIGENT_BEGIN_INTERFACE(ICommandQueueD3D12, ICommandQueue)
 {
@@ -73,6 +89,11 @@ DILIGENT_BEGIN_INTERFACE(ICommandQueueD3D12, ICommandQueue)
     VIRTUAL void METHOD(WaitFence)(THIS_
                                    ID3D12Fence* pFence,
                                    Uint64       Value) PURE;
+    
+    /// Updates mappings of tile locations in reserved resources to memory locations in a resource heap.
+    VIRTUAL void METHOD(UpdateTileMappings)(THIS_
+                                            ResourceTileMappings* pMappings,
+                                            Uint32                Count) PURE;
 
     /// Returns the Direct3D12 command queue description
     VIRTUAL const D3D12_COMMAND_QUEUE_DESC REF METHOD(GetD3D12CommandQueueDesc)(THIS) CONST PURE;
@@ -89,6 +110,7 @@ DILIGENT_END_INTERFACE
 #    define ICommandQueueD3D12_GetD3D12CommandQueue(This)     CALL_IFACE_METHOD(CommandQueueD3D12, GetD3D12CommandQueue,     This)
 #    define ICommandQueueD3D12_EnqueueSignal(This, ...)       CALL_IFACE_METHOD(CommandQueueD3D12, EnqueueSignal,            This, __VA_ARGS__)
 #    define ICommandQueueD3D12_WaitFence(This, ...)           CALL_IFACE_METHOD(CommandQueueD3D12, WaitFence,                This, __VA_ARGS__)
+#    define ICommandQueueD3D12_UpdateTileMappings(This, ...)  CALL_IFACE_METHOD(CommandQueueD3D12, UpdateTileMappings,       This, __VA_ARGS__)
 #    define ICommandQueueD3D12_GetD3D12CommandQueueDesc(This) CALL_IFACE_METHOD(CommandQueueD3D12, GetD3D12CommandQueueDesc, This)
 
 // clang-format on

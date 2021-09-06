@@ -35,10 +35,18 @@
 namespace Diligent
 {
 
+#define LOG_TEXTURE_ERROR_AND_THROW(...) LOG_ERROR_AND_THROW("Texture '", (Desc.Name ? Desc.Name : ""), "': ", ##__VA_ARGS__)
+#define VERIFY_TEXTURE(Expr, ...)                     \
+    do                                                \
+    {                                                 \
+        if (!(Expr))                                  \
+        {                                             \
+            LOG_TEXTURE_ERROR_AND_THROW(__VA_ARGS__); \
+        }                                             \
+    } while (false)
+
 void ValidateTextureDesc(const TextureDesc& Desc, const IRenderDevice* pDevice) noexcept(false)
 {
-#define LOG_TEXTURE_ERROR_AND_THROW(...) LOG_ERROR_AND_THROW("Texture '", (Desc.Name ? Desc.Name : ""), "': ", ##__VA_ARGS__)
-
     const auto& FmtAttribs = GetTextureFormatAttribs(Desc.Format);
     const auto& MemInfo    = pDevice->GetAdapterInfo().Memory;
 
@@ -227,6 +235,56 @@ void ValidateTextureDesc(const TextureDesc& Desc, const IRenderDevice* pDevice) 
             default:
                 LOG_TEXTURE_ERROR_AND_THROW("Shading rate texture is not supported.");
         }
+    }
+
+    if (Desc.Usage == USAGE_SPARSE)
+    {
+        VERIFY_TEXTURE(pDevice->GetDeviceInfo().Features.SparseMemory, "sparse texture requires SparseMemory feature");
+
+        const auto& SparseProps = pDevice->GetAdapterInfo().SparseMemory;
+
+        if ((Desc.SparseFlags & SPARSE_RESOURCE_FLAG_ALIASED) != 0)
+            VERIFY_TEXTURE(SparseProps.CapFlags & SPARSE_MEMORY_CAP_FLAG_ALIASED, "SPARSE_RESOURCE_FLAG_ALIASED flag requires SPARSE_MEMORY_CAP_FLAG_ALIASED capability");
+        if ((Desc.SparseFlags & SPARSE_RESOURCE_FLAG_ALIASED) != 0 && (Desc.SparseFlags & SPARSE_RESOURCE_FLAG_RESIDENT) != 0)
+            VERIFY_TEXTURE(SparseProps.CapFlags & SPARSE_MEMORY_CAP_FLAG_RESIDENCY_ALIASED,
+                           "combination of SPARSE_RESOURCE_FLAG_ALIASED and SPARSE_RESOURCE_FLAG_RESIDENT flags requires SPARSE_MEMORY_CAP_FLAG_RESIDENCY_ALIASED capability");
+
+        static_assert(RESOURCE_DIM_NUM_DIMENSIONS == 9, "AZ TODO");
+        switch (Desc.Type)
+        {
+            case RESOURCE_DIM_TEX_2D:
+            case RESOURCE_DIM_TEX_2D_ARRAY:
+            case RESOURCE_DIM_TEX_CUBE:
+            case RESOURCE_DIM_TEX_CUBE_ARRAY:
+                VERIFY_TEXTURE(SparseProps.CapFlags & SPARSE_MEMORY_CAP_FLAG_TEXTURE_2D,
+                               "2D or Cube sparse texture requires SPARSE_MEMORY_CAP_FLAG_TEXTURE_2D capability");
+                if ((Desc.SparseFlags & SPARSE_RESOURCE_FLAG_RESIDENT) != 0)
+                {
+                    VERIFY_TEXTURE(SparseProps.CapFlags & SPARSE_MEMORY_CAP_FLAG_RESIDENCY_TEXTURE_2D,
+                                   "SPARSE_RESOURCE_FLAG_RESIDENT flag requires SPARSE_MEMORY_CAP_FLAG_RESIDENCY_TEXTURE_2D capability");
+                }
+                break;
+
+            case RESOURCE_DIM_TEX_3D:
+                VERIFY_TEXTURE(SparseProps.CapFlags & SPARSE_MEMORY_CAP_FLAG_TEXTURE_3D,
+                               "3D sparse texture requires SPARSE_MEMORY_CAP_FLAG_TEXTURE_3D capability");
+                if ((Desc.SparseFlags & SPARSE_RESOURCE_FLAG_RESIDENT) != 0)
+                {
+                    VERIFY_TEXTURE(SparseProps.CapFlags & SPARSE_MEMORY_CAP_FLAG_RESIDENCY_TEXTURE_3D,
+                                   "SPARSE_RESOURCE_FLAG_RESIDENT flag requires SPARSE_MEMORY_CAP_FLAG_RESIDENCY_TEXTURE_3D capability");
+                }
+                break;
+
+            case RESOURCE_DIM_TEX_1D:
+            case RESOURCE_DIM_TEX_1D_ARRAY:
+            default:
+                LOG_TEXTURE_ERROR_AND_THROW("unsupported or unknown texture type used with USAGE_SPARSE");
+        }
+    }
+    else
+    {
+        VERIFY_TEXTURE(Desc.SparseFlags == SPARSE_RESOURCE_FLAG_NONE,
+                       "SparseFlags must be SPARSE_RESOURCE_FLAG_NONE if usege is not USAGE_SPARSE");
     }
 }
 

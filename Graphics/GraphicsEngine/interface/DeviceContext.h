@@ -56,6 +56,7 @@
 #include "BottomLevelAS.h"
 #include "TopLevelAS.h"
 #include "ShaderBindingTable.h"
+#include "DeviceMemory.h"
 #include "CommandQueue.h"
 
 DILIGENT_BEGIN_NAMESPACE(Diligent)
@@ -1675,6 +1676,115 @@ struct UpdateIndirectRTBufferAttribs
 typedef struct UpdateIndirectRTBufferAttribs UpdateIndirectRTBufferAttribs;
 
 
+/*// AZ TODO
+DILIGENT_TYPED_ENUM(TILE_RANGE_FLAGS, Uint32)
+{
+    TILE_RANGE_FLAG_NONE = 0,
+
+    /// VK_SPARSE_MEMORY_BIND_METADATA_BIT
+    TILE_RANGE_FLAG_MAP_METADATA = 1u << 0,
+        
+    //TILE_RANGE_FLAG_MTL_MAP   = 1u << 30,
+    //TILE_RANGE_FLAG_MTL_UNMAP = 1u << 31,
+};*/
+
+/// AZ TODO
+struct SparseMemoryBindRange
+{
+    Uint64           ResourceOffset DEFAULT_INITIALIZER(0);
+    Uint32           MemoryOffset   DEFAULT_INITIALIZER(0);
+    Uint32           MemorySize     DEFAULT_INITIALIZER(0);
+    IDeviceMemory*   pMemory        DEFAULT_INITIALIZER(nullptr);
+    
+#if DILIGENT_CPP_INTERFACE
+    constexpr SparseMemoryBindRange() noexcept {}
+
+    constexpr SparseMemoryBindRange(Uint64         _ResourceOffset,
+                                    Uint32         _MemoryOffset,
+                                    Uint32         _MemorySize,
+                                    IDeviceMemory* _pMemory) noexcept :
+        ResourceOffset{_ResourceOffset},
+        MemoryOffset  {_MemoryOffset  },
+        MemorySize    {_MemorySize    },
+        pMemory       {_pMemory       }
+    {}
+#endif
+};
+typedef struct SparseMemoryBindRange SparseMemoryBindRange;
+
+/// AZ TODO
+struct SparseBufferMemoryBind
+{
+    IBuffer*                     pBuffer    DEFAULT_INITIALIZER(nullptr);
+    const SparseMemoryBindRange* pRanges    DEFAULT_INITIALIZER(nullptr);
+    Uint32                       NumRanges  DEFAULT_INITIALIZER(0);
+};
+typedef struct SparseBufferMemoryBind SparseBufferMemoryBind;
+
+/// AZ TODO
+struct SparseMemoryTextureOpaqueBind
+{
+    ITexture*                    pTexture   DEFAULT_INITIALIZER(nullptr);
+    const SparseMemoryBindRange* pRanges    DEFAULT_INITIALIZER(nullptr);
+    Uint32                       NumRanges  DEFAULT_INITIALIZER(0);
+};
+typedef struct SparseMemoryTextureOpaqueBind SparseMemoryTextureOpaqueBind;
+
+/// AZ TODO
+struct SparseMemoryTextureBindRange
+{
+    Uint32           MipLevel      DEFAULT_INITIALIZER(0);
+    Uint32           ArraySlice    DEFAULT_INITIALIZER(0);
+    Box              Region        DEFAULT_INITIALIZER({});
+
+    /// Ignored in Metal.
+    Uint32           MemorySize    DEFAULT_INITIALIZER(0);
+    
+    /// Ignored in Metal.
+    Uint32           MemoryOffset  DEFAULT_INITIALIZER(0);
+    
+    /// Ignored in Metal.
+    IDeviceMemory*   pMemory       DEFAULT_INITIALIZER(nullptr);
+
+    /// Metal: must be TILE_RANGE_FLAG_MTL_MAP or TILE_RANGE_FLAG_MTL_UNMAP
+    //TILE_RANGE_FLAGS Flags         DEFAULT_INITIALIZER(TILE_RANGE_FLAG_NONE);
+};
+typedef struct SparseMemoryTextureBindRange SparseMemoryTextureBindRange;
+
+/// AZ TODO
+struct SparseMemoryTextureBind
+{
+    ITexture*                           pTexture   DEFAULT_INITIALIZER(nullptr);
+    const SparseMemoryTextureBindRange* pRanges    DEFAULT_INITIALIZER(nullptr);
+    Uint32                              NumRanges  DEFAULT_INITIALIZER(0);
+};
+typedef struct SparseMemoryTextureBind SparseMemoryTextureBind;
+
+/// This structure is used by IDeviceContext::BindSparseMemory().
+struct BindSparseMemoryAttribs
+{
+    /// Not supported in Metal.
+    const SparseBufferMemoryBind*  pBufferBinds   DEFAULT_INITIALIZER(nullptr);
+    Uint32                         NumBufferBinds DEFAULT_INITIALIZER(0);
+
+    const SparseMemoryTextureBind* pTextureBinds   DEFAULT_INITIALIZER(nullptr);
+    Uint32                         NumTextureBinds DEFAULT_INITIALIZER(0);
+    
+    /// Not supported in Metal.
+    const SparseMemoryTextureOpaqueBind* pTextureOpaqueBinds    DEFAULT_INITIALIZER(nullptr);
+    Uint32                               NumTextureOpaqueBinds  DEFAULT_INITIALIZER(0);
+
+    IFence**      ppWaitFences       DEFAULT_INITIALIZER(nullptr);
+    const Uint64* pWaitFenceValues   DEFAULT_INITIALIZER(nullptr);
+    Uint32        NumWaitFences      DEFAULT_INITIALIZER(0);
+
+    IFence**      ppSignalFences     DEFAULT_INITIALIZER(nullptr);
+    const Uint64* pSignalFenceValues DEFAULT_INITIALIZER(nullptr);
+    Uint32        NumSignalFences    DEFAULT_INITIALIZER(0);
+};
+typedef struct BindSparseMemoryAttribs BindSparseMemoryAttribs;
+
+
 static const Uint32 REMAINING_MIP_LEVELS   = ~0u;
 static const Uint32 REMAINING_ARRAY_SLICES = ~0u;
 
@@ -2959,6 +3069,12 @@ DILIGENT_BEGIN_INTERFACE(IDeviceContext, IObject)
                                         SHADING_RATE          BaseRate,
                                         SHADING_RATE_COMBINER PrimitiveCombiner,
                                         SHADING_RATE_COMBINER TextureCombiner) PURE;
+
+
+    /// AZ TODO
+    /// \remarks Requires COMMAND_QUEUE_TYPE_SPARSE_BINDING flag in queue.
+    VIRTUAL void METHOD(BindSparseMemory)(THIS_
+                                          const BindSparseMemoryAttribs REF Attribs) PURE;
 };
 DILIGENT_END_INTERFACE
 
@@ -3035,6 +3151,7 @@ DILIGENT_END_INTERFACE
 #    define IDeviceContext_LockCommandQueue(This)                   CALL_IFACE_METHOD(DeviceContext, LockCommandQueue,          This)
 #    define IDeviceContext_UnlockCommandQueue(This)                 CALL_IFACE_METHOD(DeviceContext, UnlockCommandQueue,        This)
 #    define IDeviceContext_SetShadingRate(This, ...)                CALL_IFACE_METHOD(DeviceContext, SetShadingRate,            This, __VA_ARGS__)
+#    define IDeviceContext_BindSparseMemory(This, ...)              CALL_IFACE_METHOD(DeviceContext, BindSparseMemory,          This, __VA_ARGS__)
 
 // clang-format on
 

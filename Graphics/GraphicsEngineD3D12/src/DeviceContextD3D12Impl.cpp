@@ -39,6 +39,7 @@
 #include "ShaderBindingTableD3D12Impl.hpp"
 #include "ShaderResourceBindingD3D12Impl.hpp"
 #include "CommandListD3D12Impl.hpp"
+#include "DeviceMemoryD3D12Impl.hpp"
 #include "CommandQueueD3D12Impl.hpp"
 
 #include "CommandContext.hpp"
@@ -2963,6 +2964,124 @@ void DeviceContextD3D12Impl::SetShadingRate(SHADING_RATE BaseRate, SHADING_RATE_
     GetCmdContext().AsGraphicsContext5().SetShadingRate(ShadingRateToD3D12ShadingRate(BaseRate), Combiners);
 
     m_State.bUsingShadingRate = !(BaseRate == SHADING_RATE_1X1 && PrimitiveCombiner == SHADING_RATE_COMBINER_PASSTHROUGH && TextureCombiner == SHADING_RATE_COMBINER_PASSTHROUGH);
+}
+
+struct TileMappingKey
+{
+    ID3D12Resource* pResource;
+    ID3D12Heap*     pHeap;
+
+    TileMappingKey(ID3D12Resource* _pResource, ID3D12Heap* _pHeap) noexcept :
+        pResource{_pResource},
+        pHeap{_pHeap}
+    {}
+
+    bool operator==(const TileMappingKey& Rhs) const
+    {
+        return pResource == Rhs.pResource && pHeap == Rhs.pHeap;
+    }
+};
+
+struct TileMappingKeyHash
+{
+    size_t operator()(const TileMappingKey& Key) const noexcept
+    {
+        size_t h = 0;
+        HashCombine(h, Key.pResource, Key.pHeap);
+        return h;
+    }
+};
+
+struct TileMapping
+{
+    std::vector<D3D12_TILED_RESOURCE_COORDINATE> Coordinates;
+    std::vector<D3D12_TILE_REGION_SIZE>          RegionSize;
+
+    std::vector<D3D12_TILE_RANGE_FLAGS> RangeFlags;
+    std::vector<UINT>                   HeapRangeStartOffsets;
+    std::vector<UINT>                   RangeTileCounts;
+};
+
+void DeviceContextD3D12Impl::BindSparseMemory(const BindSparseMemoryAttribs& Attribs)
+{
+    TDeviceContextBase::BindSparseMemory(Attribs, 0);
+
+    if (Attribs.NumBufferBinds == 0 && Attribs.NumTextureBinds == 0 && Attribs.NumTextureOpaqueBinds == 0)
+        return;
+
+    Flush();
+
+    std::unordered_map<TileMappingKey, TileMapping, TileMappingKeyHash> TileMappingMap;
+
+    for (Uint32 i = 0; i < Attribs.NumBufferBinds; ++i)
+    {
+        const auto& Src        = Attribs.pBufferBinds[i];
+        auto*       pBuffD3D12 = ClassPtrCast<BufferD3D12Impl>(Src.pBuffer)->GetD3D12Resource();
+
+        for (Uint32 r = 0; r < Src.NumRanges; ++r)
+        {
+            const auto& SrcRange = Src.pRanges[r];
+            const auto  MemRange = ClassPtrCast<DeviceMemoryD3D12Impl>(SrcRange.pMemory)->GetRange(SrcRange.MemoryOffset, SrcRange.MemorySize);
+            VERIFY_EXPR(MemRange.Size == SrcRange.MemorySize);
+
+            auto& Dst = TileMappingMap[TileMappingKey{pBuffD3D12, MemRange.pHandle}];
+
+            //auto& Coord = Dst.Coordinates.emplace_back();
+            //Coord.X     = StaticCast<UINT>(SrcRange.ResourceOffset);
+
+            //auto& Size = Dst.RegionSize.emplace_back();
+            //Size.Width = SrcRange.MemorySize;
+
+            // If pRangeFlags[i] is D3D12_TILE_RANGE_FLAG_NONE, that range defines sequential tiles in the heap,
+            // with the number of tiles being pRangeTileCounts[i] and the starting location pHeapRangeStartOffsets[i]
+            Dst.RangeFlags.emplace_back(D3D12_TILE_RANGE_FLAG_NONE);
+            Dst.HeapRangeStartOffsets.emplace_back(SrcRange.MemoryOffset);
+            Dst.RangeTileCounts.emplace_back();
+        }
+    }
+
+    for (Uint32 i = 0; i < Attribs.NumTextureBinds; ++i)
+    {
+        const auto& Src       = Attribs.pTextureBinds[i];
+        //auto*       pTexD3D12 = ClassPtrCast<TextureD3D12Impl>(Src.pTexture);
+        //auto*       pResD3D12 = pTexD3D12->GetD3D12Resource();
+        //const auto& Desc      = pTexD3D12->GetDesc();
+
+        for (Uint32 r = 0; r < Src.NumRanges; ++r)
+        {
+            const auto& SrcRange = Src.pRanges[r];
+            const auto  MemRange = ClassPtrCast<DeviceMemoryD3D12Impl>(SrcRange.pMemory)->GetRange(SrcRange.MemoryOffset, SrcRange.MemorySize);
+            VERIFY_EXPR(MemRange.Size == SrcRange.MemorySize);
+
+            //auto& Dst = TileMappingMap[TileMappingKey{pResD3D12, MemRange.pHandle}];
+
+            //auto& Coord = Dst.Coordinates.emplace_back();
+            //Coord.X     = SrcRange.Region.MinX;
+            //Coord.Y     = SrcRange.Region.MinY;
+            //Coord.Z     = SrcRange.Region.MinZ;
+
+            //if (Desc.Type == RESOURCE_DIM_TEX_3D)
+            //    Coord.Subresource = D3D12CalcSubresource(SrcRange.MipLevel, 0, 0, Desc.MipLevels, 1);
+            //else
+            //    Coord.Subresource = D3D12CalcSubresource(SrcRange.MipLevel, SrcRange.ArraySlice, 0, Desc.MipLevels, Desc.ArraySize);
+
+            //auto& Size    = Dst.RegionSize.emplace_back();
+            //Size.Width    = SrcRange.Region.MaxX - SrcRange.Region.MinX;
+            //Size.Height   = StaticCast<UINT16>(SrcRange.Region.MaxY - SrcRange.Region.MinY);
+            //Size.Depth    = StaticCast<UINT16>(SrcRange.Region.MaxZ - SrcRange.Region.MaxZ);
+            //Size.NumTiles = Size.Width * Size.Height * Size.Depth;
+            //Size.UseBox   = FALSE;
+        }
+    }
+
+    // not supported and sould be removed
+    VERIFY_EXPR(Attribs.NumTextureOpaqueBinds == 0);
+
+    //auto* pQueueD3D12 = LockCommandQueue();
+
+    //pQueueD3D12->UpdateTileMappings(Mappings.data(), MappingCount);
+
+    //UnlockCommandQueue();
 }
 
 } // namespace Diligent

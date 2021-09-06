@@ -712,4 +712,10 @@ void TextureBaseGL::SetDefaultGLParameters()
     }
 }
 
+TextureSparseParameters TextureBaseGL::GetSparseProperties() const
+{
+    DEV_ERROR("ITexture::GetSparseProperties() is not supported in OpenGL");
+    return {};
+}
+
 } // namespace Diligent

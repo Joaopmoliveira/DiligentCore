@@ -69,7 +69,7 @@ TextureVkImpl::TextureVkImpl(IReferenceCounters*        pRefCounters,
         LogicalDevice.GetEnabledExtFeatures().PortabilitySubset.imageView2DOn3DImage == VK_TRUE :
         true;
 
-    if (m_Desc.Usage == USAGE_IMMUTABLE || m_Desc.Usage == USAGE_DEFAULT || m_Desc.Usage == USAGE_DYNAMIC)
+    if (m_Desc.Usage == USAGE_IMMUTABLE || m_Desc.Usage == USAGE_DEFAULT || m_Desc.Usage == USAGE_DYNAMIC || m_Desc.Usage == USAGE_SPARSE)
     {
         VERIFY(m_Desc.Usage != USAGE_DYNAMIC || PlatformMisc::CountOneBits(m_Desc.ImmediateContextMask) <= 1,
                "ImmediateContextMask must contain single set bit, this error should've been handled in ValidateTextureDesc()");
@@ -218,23 +218,34 @@ TextureVkImpl::TextureVkImpl(IReferenceCounters*        pRefCounters,
             ImageCI.usage |= VK_IMAGE_USAGE_TRANSIENT_ATTACHMENT_BIT;
         }
 
-        m_VulkanImage = LogicalDevice.CreateImage(ImageCI, m_Desc.Name);
+        if (m_Desc.Usage == USAGE_SPARSE)
+        {
+            ImageCI.flags = SparseResFlagsToVkImageCreateFlags(m_Desc.SparseFlags);
 
-        VkMemoryRequirements MemReqs = LogicalDevice.GetImageMemoryRequirements(m_VulkanImage);
+            m_VulkanImage = LogicalDevice.CreateImage(ImageCI, m_Desc.Name);
 
-        const auto ImageMemoryFlags = IsMemoryless ? VK_MEMORY_PROPERTY_LAZILY_ALLOCATED_BIT : VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT;
-        VERIFY(IsPowerOfTwo(MemReqs.alignment), "Alignment is not power of 2!");
-        m_MemoryAllocation = pRenderDeviceVk->AllocateMemory(MemReqs, ImageMemoryFlags);
-        auto AlignedOffset = AlignUp(m_MemoryAllocation.UnalignedOffset, MemReqs.alignment);
-        VERIFY_EXPR(m_MemoryAllocation.Size >= MemReqs.size + (AlignedOffset - m_MemoryAllocation.UnalignedOffset));
-        auto Memory = m_MemoryAllocation.Page->GetVkMemory();
-        auto err    = LogicalDevice.BindImageMemory(m_VulkanImage, Memory, AlignedOffset);
-        CHECK_VK_ERROR_AND_THROW(err, "Failed to bind image memory");
-
-        if (pInitData != nullptr && pInitData->pSubResources != nullptr && pInitData->NumSubresources > 0)
-            InitializeTextureContent(*pInitData, FmtAttribs, ImageCI);
-        else
             SetState(RESOURCE_STATE_UNDEFINED);
+        }
+        else
+        {
+            m_VulkanImage = LogicalDevice.CreateImage(ImageCI, m_Desc.Name);
+
+            VkMemoryRequirements MemReqs = LogicalDevice.GetImageMemoryRequirements(m_VulkanImage);
+
+            const auto ImageMemoryFlags = IsMemoryless ? VK_MEMORY_PROPERTY_LAZILY_ALLOCATED_BIT : VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT;
+            VERIFY(IsPowerOfTwo(MemReqs.alignment), "Alignment is not power of 2!");
+            m_MemoryAllocation = pRenderDeviceVk->AllocateMemory(MemReqs, ImageMemoryFlags);
+            auto AlignedOffset = AlignUp(m_MemoryAllocation.UnalignedOffset, MemReqs.alignment);
+            VERIFY_EXPR(m_MemoryAllocation.Size >= MemReqs.size + (AlignedOffset - m_MemoryAllocation.UnalignedOffset));
+            auto Memory = m_MemoryAllocation.Page->GetVkMemory();
+            auto err    = LogicalDevice.BindImageMemory(m_VulkanImage, Memory, AlignedOffset);
+            CHECK_VK_ERROR_AND_THROW(err, "Failed to bind image memory");
+
+            if (pInitData != nullptr && pInitData->pSubResources != nullptr && pInitData->NumSubresources > 0)
+                InitializeTextureContent(*pInitData, FmtAttribs, ImageCI);
+            else
+                SetState(RESOURCE_STATE_UNDEFINED);
+        }
     }
     else if (m_Desc.Usage == USAGE_STAGING)
     {
@@ -775,6 +786,44 @@ void TextureVkImpl::InvalidateStagingRange(VkDeviceSize Offset, VkDeviceSize Siz
     auto err = LogicalDevice.InvalidateMappedMemoryRanges(1, &InvalidateRange);
     DEV_CHECK_ERR(err == VK_SUCCESS, "Failed to invalidated mapped texture memory range");
     (void)err;
+}
+
+TextureSparseParameters TextureVkImpl::GetSparseProperties() const
+{
+    DEV_CHECK_ERR(m_Desc.Usage == USAGE_SPARSE,
+                  "ITexture::GetSparseProperties() must be used for sparse texture");
+
+    const auto& LogicalDevice = m_pDevice->GetLogicalDevice();
+    const auto  MemReq        = LogicalDevice.GetImageMemoryRequirements(GetVkImage());
+
+    TextureSparseParameters Props{};
+    Props.MemorySize      = MemReq.size;
+    Props.MemoryAlignment = StaticCast<Uint32>(MemReq.alignment);
+
+    if (m_Desc.SparseFlags & SPARSE_RESOURCE_FLAG_RESIDENT)
+    {
+        // If the image was not created with VK_IMAGE_CREATE_SPARSE_RESIDENCY_BIT then pSparseMemoryRequirementCount will be set to zero.
+        uint32_t SparseReqCount = 0;
+        vkGetImageSparseMemoryRequirements(LogicalDevice.GetVkDevice(), GetVkImage(), &SparseReqCount, nullptr);
+        VERIFY(SparseReqCount > 0, "Sparse memory requirements for image must not be zero");
+
+        SparseReqCount = std::min(SparseReqCount, 2u);
+
+        // Texture with depth-stencil format may be implemented with a two memory blocks per tile.
+        VkSparseImageMemoryRequirements SparseReq[2] = {};
+        vkGetImageSparseMemoryRequirements(LogicalDevice.GetVkDevice(), GetVkImage(), &SparseReqCount, SparseReq);
+
+        Props.MipTailOffset  = SparseReq[0].imageMipTailOffset;
+        Props.MipTailSize    = StaticCast<Uint32>(SparseReq[0].imageMipTailSize);
+        Props.MipTailStride  = StaticCast<Uint32>(SparseReq[0].imageMipTailStride);
+        Props.FirstMipInTail = SparseReq[0].imageMipTailFirstLod;
+        Props.TileSize[0]    = SparseReq[0].formatProperties.imageGranularity.width;
+        Props.TileSize[1]    = SparseReq[0].formatProperties.imageGranularity.height;
+        Props.TileSize[2]    = SparseReq[0].formatProperties.imageGranularity.depth;
+
+        // AZ TODO: depth stencil
+    }
+    return Props;
 }
 
 } // namespace Diligent

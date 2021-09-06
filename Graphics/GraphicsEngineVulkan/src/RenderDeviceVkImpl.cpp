@@ -44,6 +44,7 @@
 #include "TopLevelASVkImpl.hpp"
 #include "ShaderBindingTableVkImpl.hpp"
 #include "PipelineResourceSignatureVkImpl.hpp"
+#include "DeviceMemoryVkImpl.hpp"
 #include "CommandQueueVkImpl.hpp"
 
 #include "VulkanTypeConversions.hpp"
@@ -695,6 +696,11 @@ void RenderDeviceVkImpl::CreatePipelineResourceSignature(const PipelineResourceS
     CreatePipelineResourceSignatureImpl(ppSignature, Desc, ShaderStages, IsDeviceInternal);
 }
 
+void RenderDeviceVkImpl::CreateDeviceMemory(const DeviceMemoryCreateInfo& CreateInfo, IDeviceMemory** ppMemory)
+{
+    CreateDeviceMemoryImpl(ppMemory, CreateInfo);
+}
+
 std::vector<uint32_t> RenderDeviceVkImpl::ConvertCmdQueueIdsToQueueFamilies(Uint64 CommandQueueMask) const
 {
     std::bitset<MAX_COMMAND_QUEUES> QueueFamilyBits{};
@@ -720,6 +726,12 @@ HardwareQueueIndex RenderDeviceVkImpl::GetQueueFamilyIndex(SoftwareQueueIndex Cm
 {
     const auto& CmdQueue = GetCommandQueue(SoftwareQueueIndex{CmdQueueInd});
     return HardwareQueueIndex{CmdQueue.GetQueueFamilyIndex()};
+}
+
+TextureFormatSparseInfo RenderDeviceVkImpl::GetTextureFormatSparseInfo(TEXTURE_FORMAT TexFormat, RESOURCE_DIMENSION Dimension) const
+{
+    // AZ TODO
+    return {};
 }
 
 } // namespace Diligent

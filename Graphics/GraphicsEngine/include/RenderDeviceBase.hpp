@@ -229,6 +229,7 @@ public:
     using TopLevelASImplType                = typename EngineImplTraits::TopLevelASImplType;
     using ShaderBindingTableImplType        = typename EngineImplTraits::ShaderBindingTableImplType;
     using PipelineResourceSignatureImplType = typename EngineImplTraits::PipelineResourceSignatureImplType;
+    using DeviceMemoryImplType              = typename EngineImplTraits::DeviceMemoryImplType;
 
     /// \param pRefCounters    - Reference counters object that controls the lifetime of this render device
     /// \param RawMemAllocator - Allocator that will be used to allocate memory for all device objects (including render device itself)
@@ -270,7 +271,8 @@ public:
         m_BLASAllocator         {RawMemAllocator, sizeof(BottomLevelASImplType),              16},
         m_TLASAllocator         {RawMemAllocator, sizeof(TopLevelASImplType),                 16},
         m_SBTAllocator          {RawMemAllocator, sizeof(ShaderBindingTableImplType),         16},
-        m_PipeResSignAllocator  {RawMemAllocator, sizeof(PipelineResourceSignatureImplType), 128}
+        m_PipeResSignAllocator  {RawMemAllocator, sizeof(PipelineResourceSignatureImplType), 128},
+        m_MemObjllocator        {RawMemAllocator, sizeof(DeviceMemoryImplType),               16}
     // clang-format on
     {
         // Initialize texture format info
@@ -652,6 +654,17 @@ protected:
                            });
     }
 
+    template <typename... ExtraArgsType>
+    void CreateDeviceMemoryImpl(IDeviceMemory** ppMemory, const DeviceMemoryCreateInfo& MemCI, const ExtraArgsType&... ExtraArgs)
+    {
+        CreateDeviceObject("DeviceMemory", MemCI.Desc, ppMemory,
+                           [&]() //
+                           {
+                               auto* pDevMemImpl(NEW_RC_OBJ(m_MemObjllocator, "DeviceMemory instance", DeviceMemoryImplType)(static_cast<RenderDeviceImplType*>(this), MemCI, ExtraArgs...));
+                               pDevMemImpl->QueryInterface(IID_DeviceMemory, reinterpret_cast<IObject**>(ppMemory));
+                           });
+    }
+
 protected:
     RefCntAutoPtr<IEngineFactory> m_pEngineFactory;
 
@@ -691,6 +704,7 @@ protected:
     FixedBlockMemoryAllocator m_TLASAllocator;        ///< Allocator for top-level acceleration structure objects
     FixedBlockMemoryAllocator m_SBTAllocator;         ///< Allocator for shader binding table objects
     FixedBlockMemoryAllocator m_PipeResSignAllocator; ///< Allocator for pipeline resource signature objects
+    FixedBlockMemoryAllocator m_MemObjllocator;       ///< Allocator for device memory objects
 };
 
 } // namespace Diligent

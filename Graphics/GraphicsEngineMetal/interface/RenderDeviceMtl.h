@@ -93,6 +93,12 @@ DILIGENT_BEGIN_INTERFACE(IRenderDeviceMtl, IRenderDevice)
                                                     const RasterizationRateMapCreateInfo REF CreateInfo,
                                                     IRasterizationRateMapMtl**               ppRRM) PURE;
 #endif
+
+    /// AZ TODO
+    VIRTUAL void METHOD(CreateSparseTexture)(THIS_
+                                             const TextureDesc REF TexDesc,
+                                             IDeviceMemory*        pMemory,
+                                             ITexture**            ppTexture) PURE;
 };
 DILIGENT_END_INTERFACE
 
@@ -110,6 +116,7 @@ DILIGENT_END_INTERFACE
 #    define IRenderDeviceMtl_CreateTLASFromMtlResource(This, ...)                 CALL_IFACE_METHOD(RenderDeviceMtl, CreateTLASFromMtlResource,                 This, __VA_ARGS__)
 #    define IRenderDeviceMtl_CreateRasterizationRateMap(This, ...)                CALL_IFACE_METHOD(RenderDeviceMtl, CreateRasterizationRateMap,                This, __VA_ARGS__)
 #    define IRenderDeviceMtl_CreateRasterizationRateMapFromMtlResource(This, ...) CALL_IFACE_METHOD(RenderDeviceMtl, CreateRasterizationRateMapFromMtlResource, This, __VA_ARGS__)
+#    define IRenderDeviceMtl_CreateSparseTexture(This, ...)                       CALL_IFACE_METHOD(RenderDeviceMtl, CreateSparseTexture,                       This, __VA_ARGS__)
 
 // clang-format on
 

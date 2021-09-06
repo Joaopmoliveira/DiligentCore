@@ -126,4 +126,27 @@ void CommandQueueD3D12Impl::WaitFence(ID3D12Fence* pFence, Uint64 Value)
     m_pd3d12CmdQueue->Wait(pFence, Value);
 }
 
+void CommandQueueD3D12Impl::UpdateTileMappings(ResourceTileMappings* pMappings, Uint32 Count)
+{
+    DEV_CHECK_ERR(pMappings != nullptr, "");
+
+    std::lock_guard<std::mutex> Lock{m_QueueMtx};
+
+    for (Uint32 i = 0; i < Count; ++i)
+    {
+        const auto& Mapping = pMappings[i];
+        m_pd3d12CmdQueue->UpdateTileMappings(
+            Mapping.pResource,
+            Mapping.NumResourceRegions,
+            Mapping.pResourceRegionStartCoordinates,
+            Mapping.pResourceRegionSizes,
+            Mapping.pHeap,
+            Mapping.NumRanges,
+            Mapping.pRangeFlags,
+            Mapping.pHeapRangeStartOffsets,
+            Mapping.pRangeTileCounts,
+            Mapping.Flags);
+    }
+}
+
 } // namespace Diligent

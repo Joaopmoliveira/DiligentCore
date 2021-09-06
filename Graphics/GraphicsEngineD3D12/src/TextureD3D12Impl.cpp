@@ -159,7 +159,12 @@ TextureD3D12Impl::TextureD3D12Impl(IReferenceCounters*        pRefCounters,
         static_cast<D3D12_RESOURCE_STATES>(~0u);
 
     auto* pd3d12Device = pRenderDeviceD3D12->GetD3D12Device();
-    if (m_Desc.Usage == USAGE_IMMUTABLE || m_Desc.Usage == USAGE_DEFAULT || m_Desc.Usage == USAGE_DYNAMIC)
+    if (m_Desc.Usage == USAGE_SPARSE)
+    {
+        // In Direct3D12 sparse resources is always resident and aliased
+        m_Desc.SparseFlags |= SPARSE_RESOURCE_FLAG_RESIDENT | SPARSE_RESOURCE_FLAG_ALIASED;
+    }
+    else if (m_Desc.Usage == USAGE_IMMUTABLE || m_Desc.Usage == USAGE_DEFAULT || m_Desc.Usage == USAGE_DYNAMIC)
     {
         VERIFY(m_Desc.Usage != USAGE_DYNAMIC || PlatformMisc::CountOneBits(m_Desc.ImmediateContextMask) <= 1,
                "ImmediateContextMask must contain single set bit, this error should've been handled in ValidateTextureDesc()");
@@ -629,6 +634,12 @@ void TextureD3D12Impl::SetD3D12ResourceState(D3D12_RESOURCE_STATES state)
 D3D12_RESOURCE_STATES TextureD3D12Impl::GetD3D12ResourceState() const
 {
     return ResourceStateFlagsToD3D12ResourceStates(GetState());
+}
+
+TextureSparseParameters TextureD3D12Impl::GetSparseProperties() const
+{
+    // AZ TODO
+    return {};
 }
 
 } // namespace Diligent

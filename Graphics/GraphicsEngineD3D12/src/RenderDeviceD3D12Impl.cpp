@@ -47,6 +47,7 @@
 #include "TopLevelASD3D12Impl.hpp"
 #include "ShaderBindingTableD3D12Impl.hpp"
 #include "PipelineResourceSignatureD3D12Impl.hpp"
+#include "DeviceMemoryD3D12Impl.hpp"
 
 #include "EngineMemory.h"
 #include "D3D12TypeConversions.hpp"
@@ -460,6 +461,9 @@ void RenderDeviceD3D12Impl::TestTextureFormat(TEXTURE_FORMAT TexFormat)
         if (SUCCEEDED(hr) && QualityLevels.NumQualityLevels > 0)
             TexFormatInfo.SampleCounts |= SampleCount;
     }
+
+    //TexFormatInfo.SparseMemoryCompatible = (FormatSupport.Support2 & D3D12_FORMAT_SUPPORT2_TILED) == D3D12_FORMAT_SUPPORT2_TILED;
+    // AZ TODO: SparseMemoryMSAACompatible
 }
 
 void RenderDeviceD3D12Impl::CreateGraphicsPipelineState(const GraphicsPipelineStateCreateInfo& PSOCreateInfo, IPipelineState** ppPipelineState)
@@ -605,6 +609,16 @@ void RenderDeviceD3D12Impl::CreateRootSignature(const RefCntAutoPtr<PipelineReso
     RootSignatureD3D12* pRootSigD3D12{NEW_RC_OBJ(m_RootSignatureAllocator, "RootSignatureD3D12 instance", RootSignatureD3D12)(this, ppSignatures, SignatureCount, Hash)};
     pRootSigD3D12->AddRef();
     *ppRootSig = pRootSigD3D12;
+}
+
+void RenderDeviceD3D12Impl::CreateDeviceMemory(const DeviceMemoryCreateInfo& CreateInfo, IDeviceMemory** ppMemory)
+{
+    CreateDeviceMemoryImpl(ppMemory, CreateInfo);
+}
+
+TextureFormatSparseInfo RenderDeviceD3D12Impl::GetTextureFormatSparseInfo(TEXTURE_FORMAT TexFormat, RESOURCE_DIMENSION Dimension) const
+{
+    return {};
 }
 
 } // namespace Diligent

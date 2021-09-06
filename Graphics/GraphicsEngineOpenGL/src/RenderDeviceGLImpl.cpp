@@ -132,6 +132,8 @@ class TopLevelASGLImpl
 {};
 class ShaderBindingTableGLImpl
 {};
+class DeviceMemoryGLImpl
+{};
 
 static void VerifyEngineGLCreateInfo(const EngineGLCreateInfo& EngineCI) noexcept(false)
 {
@@ -542,6 +544,12 @@ void RenderDeviceGLImpl::CreateSBT(const ShaderBindingTableDesc& Desc,
 {
     UNSUPPORTED("CreateSBT is not supported in OpenGL");
     *ppSBT = nullptr;
+}
+
+void RenderDeviceGLImpl::CreateDeviceMemory(const DeviceMemoryCreateInfo& CreateInfo, IDeviceMemory** ppMemory)
+{
+    UNSUPPORTED("CreateDeviceMemory is not supported in OpenGL");
+    *ppMemory = nullptr;
 }
 
 bool RenderDeviceGLImpl::CheckExtension(const Char* ExtensionString) const
@@ -965,7 +973,7 @@ void RenderDeviceGLImpl::InitAdapterInfo()
     }
 
 #if defined(_MSC_VER) && defined(_WIN64)
-    static_assert(sizeof(DeviceFeatures) == 38, "Did you add a new feature to DeviceFeatures? Please handle its satus here.");
+    static_assert(sizeof(DeviceFeatures) == 39, "Did you add a new feature to DeviceFeatures? Please handle its satus here.");
 #endif
 }
 

@@ -11,6 +11,7 @@ set(INCLUDE
     include/D3D11TypeConversions.hpp
     include/D3D11TypeDefinitions.h
     include/DeviceContextD3D11Impl.hpp
+    include/DeviceMemoryD3D11Impl.hpp
     include/DisjointQueryPool.hpp
     include/EngineD3D11ImplTraits.hpp
     include/NVApiLoader.hpp
@@ -42,6 +43,7 @@ set(INTERFACE
     interface/BufferD3D11.h
     interface/BufferViewD3D11.h
     interface/DeviceContextD3D11.h
+    interface/DeviceMemoryD3D11.h
     interface/EngineFactoryD3D11.h
     interface/FenceD3D11.h
     interface/PipelineStateD3D11.h
@@ -62,6 +64,7 @@ set(SRC
     src/CommandListD3D11Impl.cpp
     src/D3D11TypeConversions.cpp
     src/DeviceContextD3D11Impl.cpp
+    src/DeviceMemoryD3D11Impl.cpp
     src/EngineFactoryD3D11.cpp
     src/FenceD3D11Impl.cpp
     src/FramebufferD3D11Impl.cpp

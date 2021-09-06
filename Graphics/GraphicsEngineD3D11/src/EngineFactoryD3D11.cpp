@@ -435,7 +435,7 @@ GraphicsAdapterInfo EngineFactoryD3D11Impl::GetGraphicsAdapterInfo(void*        
         Features.ShaderFloat16 = ShaderFloat16Supported ? DEVICE_FEATURE_STATE_ENABLED : DEVICE_FEATURE_STATE_DISABLED;
     }
 #if defined(_MSC_VER) && defined(_WIN64)
-    static_assert(sizeof(Features) == 38, "Did you add a new feature to DeviceFeatures? Please handle its satus here.");
+    static_assert(sizeof(Features) == 39, "Did you add a new feature to DeviceFeatures? Please handle its satus here.");
 #endif
 
 
@@ -517,6 +517,50 @@ GraphicsAdapterInfo EngineFactoryD3D11Impl::GetGraphicsAdapterInfo(void*        
         static_assert(sizeof(DrawCommandProps) == 12, "Did you add a new member to DrawCommandProperties? Please initialize it here.");
 #endif
     }
+
+
+#if D3D11_VERSION >= 2
+    // Sparse memory properties
+    {
+        D3D11_FEATURE_DATA_D3D11_OPTIONS1 d3d11TiledResources{};
+        if (SUCCEEDED(pd3d11Device->CheckFeatureSupport(D3D11_FEATURE_D3D11_OPTIONS1, &d3d11TiledResources, sizeof(d3d11TiledResources))))
+        {
+            if (d3d11TiledResources.TiledResourcesTier >= D3D11_TILED_RESOURCES_TIER_1)
+            {
+                Features.SparseMemory = DEVICE_FEATURE_STATE_ENABLED;
+
+                auto& SparseMem{AdapterInfo.SparseMemory};
+                // https://docs.microsoft.com/en-us/windows/win32/direct3d11/address-space-available-for-tiled-resources
+                SparseMem.AddressSpaceSize  = Uint64{1} << (sizeof(void*) > 4 ? 40 : 32);
+                SparseMem.ResourceSpaceSize = ~Uint64{0}; // no limits
+                SparseMem.SparseBlockSize   = D3D11_2_TILED_RESOURCE_TILE_SIZE_IN_BYTES;
+                SparseMem.CapFlags =
+                    SPARSE_MEMORY_CAP_FLAG_BUFFER |
+                    SPARSE_MEMORY_CAP_FLAG_TEXTURE_2D |
+                    SPARSE_MEMORY_CAP_FLAG_RESIDENCY_STANDARD_2D_BLOCK_SHAPE |
+                    SPARSE_MEMORY_CAP_FLAG_ALIASED;
+
+                SparseMem.BufferBindFlags = BIND_SHADER_RESOURCE | BIND_UNORDERED_ACCESS;
+
+                if (d3d11TiledResources.TiledResourcesTier >= D3D11_TILED_RESOURCES_TIER_2)
+                {
+                    SparseMem.CapFlags |=
+                        SPARSE_MEMORY_CAP_FLAG_SHADER_RESOURCE_RESIDENCY |
+                        SPARSE_MEMORY_CAP_FLAG_RESIDENCY_BUFFER |
+                        SPARSE_MEMORY_CAP_FLAG_RESIDENCY_TEXTURE_2D |
+                        SPARSE_MEMORY_CAP_FLAG_RESIDENCY_ALIASED; // AZ TODO: check
+                }
+                if (d3d11TiledResources.TiledResourcesTier >= D3D11_TILED_RESOURCES_TIER_3)
+                {
+                    SparseMem.CapFlags |= SPARSE_MEMORY_CAP_FLAG_TEXTURE_3D | SPARSE_MEMORY_CAP_FLAG_RESIDENCY_TEXTURE_3D;
+                }
+
+                for (Uint32 q = 0; q < AdapterInfo.NumQueues; ++q)
+                    AdapterInfo.Queues[q].QueueType |= COMMAND_QUEUE_TYPE_SPARSE_BINDING;
+            }
+        }
+    }
+#endif
 
     return AdapterInfo;
 }

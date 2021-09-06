@@ -90,6 +90,7 @@ bool VerifyTraceRaysIndirectAttribs(const IRenderDevice*            pDevice,
                                     const TraceRaysIndirectAttribs& Attribs,
                                     Uint32                          SBTSize);
 
+bool VerifyBindSparseMemoryAttribs(const IRenderDevice* pDevice, const BindSparseMemoryAttribs& Attribs);
 
 
 /// Describes input vertex stream
@@ -574,6 +575,8 @@ protected:
     void InsertDebugLabel(const Char* Label, const float* pColor, int) const;
 
     void SetShadingRate(SHADING_RATE BaseRate, SHADING_RATE_COMBINER PrimitiveCombiner, SHADING_RATE_COMBINER TextureCombiner, int) const;
+
+    void BindSparseMemory(const BindSparseMemoryAttribs& Attribs, int) const;
 
 protected:
     static constexpr Uint32 DrawMeshIndirectCommandStride = sizeof(Uint32) * 3; // D3D12: 12 bytes (x, y, z dimension)
@@ -2013,6 +2016,16 @@ void DeviceContextBase<ImplementationTraits>::SetShadingRate(SHADING_RATE BaseRa
     }
     DEV_CHECK_ERR(IsSupported, "IDeviceContext::SetShadingRate: BaseRate must be one of the supported shading rates");
 #endif
+}
+
+template <typename ImplementationTraits>
+void DeviceContextBase<ImplementationTraits>::BindSparseMemory(const BindSparseMemoryAttribs& Attribs, int) const
+{
+    DVP_CHECK_QUEUE_TYPE_COMPATIBILITY(COMMAND_QUEUE_TYPE_SPARSE_BINDING, "BindSparseMemory");
+
+    DEV_CHECK_ERR(!IsDeferred(), "BindSparseMemory() should only be called for immediate contexts.");
+    DEV_CHECK_ERR(m_pDevice->GetDeviceInfo().Features.SparseMemory, "IDeviceContext::BindSparseMemory: SparseMemory feature must be enabled");
+    DEV_CHECK_ERR(VerifyBindSparseMemoryAttribs(m_pDevice, Attribs), "BindSparseMemoryAttribs are invalid");
 }
 
 template <typename ImplementationTraits>

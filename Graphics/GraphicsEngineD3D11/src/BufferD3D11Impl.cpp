@@ -72,10 +72,7 @@ BufferD3D11Impl::BufferD3D11Impl(IReferenceCounters*        pRefCounters,
         m_Desc.Size = AlignUp(m_Desc.Size, Alignment);
     }
 
-    if (m_Desc.Size > UINT32_MAX)
-    {
-        LOG_ERROR_AND_THROW("Buffer size (", m_Desc.Size, ") must not be greater than UINT32_MAX in Direct3D11");
-    }
+    VERIFY_EXPR(m_Desc.Size <= std::numeric_limits<Uint32>::max()); // duplicates check in ValidateBufferDesc()
 
     D3D11_BUFFER_DESC D3D11BuffDesc{};
     D3D11BuffDesc.BindFlags = BindFlagsToD3D11BindFlags(m_Desc.BindFlags);
@@ -84,6 +81,13 @@ BufferD3D11Impl::BufferD3D11Impl(IReferenceCounters*        pRefCounters,
     if (m_Desc.BindFlags & BIND_INDIRECT_DRAW_ARGS)
     {
         D3D11BuffDesc.MiscFlags |= D3D11_RESOURCE_MISC_DRAWINDIRECT_ARGS;
+    }
+    if (m_Desc.Usage == USAGE_SPARSE)
+    {
+        D3D11BuffDesc.MiscFlags |= D3D11_RESOURCE_MISC_TILED;
+
+        // In Direct3D11 sparse resources is always resident and aliased
+        m_Desc.SparseFlags |= SPARSE_RESOURCE_FLAG_RESIDENT | SPARSE_RESOURCE_FLAG_ALIASED;
     }
     D3D11BuffDesc.Usage = UsageToD3D11Usage(m_Desc.Usage);
 
@@ -291,6 +295,12 @@ void BufferD3D11Impl::CreateSRV(struct BufferViewDesc& SRVDesc, ID3D11ShaderReso
     auto* pd3d11Device = GetDevice()->GetD3D11Device();
     CHECK_D3D_RESULT_THROW(pd3d11Device->CreateShaderResourceView(m_pd3d11Buffer, &D3D11_SRVDesc, ppD3D11SRV),
                            "Failed to create D3D11 shader resource view");
+}
+
+BufferSparseProperties BufferD3D11Impl::GetSparseProperties() const
+{
+    // AZ TODO
+    return {};
 }
 
 } // namespace Diligent

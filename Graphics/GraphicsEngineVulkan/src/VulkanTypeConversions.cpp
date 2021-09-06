@@ -1936,6 +1936,7 @@ DeviceFeatures VkFeaturesToDeviceFeatures(uint32_t                              
     INIT_FEATURE(VertexPipelineUAVWritesAndAtomics, vkFeatures.vertexPipelineStoresAndAtomics);
     INIT_FEATURE(PixelUAVWritesAndAtomics,          vkFeatures.fragmentStoresAndAtomics);
     INIT_FEATURE(TextureUAVExtendedFormats,         vkFeatures.shaderStorageImageExtendedFormats);
+    INIT_FEATURE(SparseMemory,                      vkFeatures.sparseBinding);
     // clang-format on
 
     const auto& MeshShaderFeats = ExtFeatures.MeshShader;
@@ -2012,10 +2013,44 @@ DeviceFeatures VkFeaturesToDeviceFeatures(uint32_t                              
 #endif
 
 #if defined(_MSC_VER) && defined(_WIN64)
-    static_assert(sizeof(DeviceFeatures) == 38, "Did you add a new feature to DeviceFeatures? Please handle its satus here (if necessary).");
+    static_assert(sizeof(DeviceFeatures) == 39, "Did you add a new feature to DeviceFeatures? Please handle its satus here (if necessary).");
 #endif
 
     return Features;
+}
+
+VkBufferCreateFlags SparseResFlagsToVkBufferCreateFlags(SPARSE_RESOURCE_FLAGS Flags)
+{
+    static_assert(SPARSE_RESOURCE_FLAG_LAST == (1u << 1), "This function must be updated to handle new sparse resource flag");
+    VkBufferCreateFlags Result = VK_BUFFER_CREATE_SPARSE_BINDING_BIT;
+    while (Flags != 0)
+    {
+        auto FlagBit = ExtractLSB(Flags);
+        switch (FlagBit)
+        {
+            case SPARSE_RESOURCE_FLAG_RESIDENT: Result |= VK_BUFFER_CREATE_SPARSE_RESIDENCY_BIT; break;
+            case SPARSE_RESOURCE_FLAG_ALIASED: Result |= VK_BUFFER_CREATE_SPARSE_ALIASED_BIT; break;
+            default: UNEXPECTED("Unexpected sparse resource flag");
+        }
+    }
+    return Result;
+}
+
+VkImageCreateFlags SparseResFlagsToVkImageCreateFlags(SPARSE_RESOURCE_FLAGS Flags)
+{
+    static_assert(SPARSE_RESOURCE_FLAG_LAST == (1u << 1), "This function must be updated to handle new sparse resource flag");
+    VkImageCreateFlags Result = VK_IMAGE_CREATE_SPARSE_BINDING_BIT;
+    while (Flags != 0)
+    {
+        auto FlagBit = ExtractLSB(Flags);
+        switch (FlagBit)
+        {
+            case SPARSE_RESOURCE_FLAG_RESIDENT: Result |= VK_IMAGE_CREATE_SPARSE_RESIDENCY_BIT; break;
+            case SPARSE_RESOURCE_FLAG_ALIASED: Result |= VK_IMAGE_CREATE_SPARSE_ALIASED_BIT; break;
+            default: UNEXPECTED("Unexpected sparse resource flag");
+        }
+    }
+    return Result;
 }
 
 } // namespace Diligent

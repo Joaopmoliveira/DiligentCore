@@ -80,9 +80,14 @@ BufferD3D12Impl::BufferD3D12Impl(IReferenceCounters*        pRefCounters,
     m_Desc.Size = AlignUp(m_Desc.Size, BufferAlignment);
 
 
-    if ((m_Desc.Usage == USAGE_DYNAMIC) &&
-        (m_Desc.BindFlags & BIND_UNORDERED_ACCESS) == 0 &&
-        (m_Desc.Mode == BUFFER_MODE_UNDEFINED || m_Desc.Mode == BUFFER_MODE_STRUCTURED))
+    if (m_Desc.Usage == USAGE_SPARSE)
+    {
+        // In Direct3D12 sparse resources is always resident and aliased
+        m_Desc.SparseFlags |= SPARSE_RESOURCE_FLAG_RESIDENT | SPARSE_RESOURCE_FLAG_ALIASED;
+    }
+    else if ((m_Desc.Usage == USAGE_DYNAMIC) &&
+             (m_Desc.BindFlags & BIND_UNORDERED_ACCESS) == 0 &&
+             (m_Desc.Mode == BUFFER_MODE_UNDEFINED || m_Desc.Mode == BUFFER_MODE_STRUCTURED))
     {
         // Dynamic constant/vertex/index buffers are suballocated in the upload heap when Map() is called.
         // Dynamic buffers with UAV flags as well as formatted buffers need to be allocated in GPU-only memory.
@@ -428,6 +433,12 @@ void BufferD3D12Impl::SetD3D12ResourceState(D3D12_RESOURCE_STATES state)
 D3D12_RESOURCE_STATES BufferD3D12Impl::GetD3D12ResourceState() const
 {
     return ResourceStateFlagsToD3D12ResourceStates(GetState());
+}
+
+BufferSparseProperties BufferD3D12Impl::GetSparseProperties() const
+{
+    // AZ TODO
+    return {};
 }
 
 } // namespace Diligent

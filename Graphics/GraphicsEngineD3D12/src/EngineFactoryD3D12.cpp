@@ -776,6 +776,49 @@ GraphicsAdapterInfo EngineFactoryD3D12Impl::GetGraphicsAdapterInfo(void*        
                 {
                     Features.ShaderFloat16 = DEVICE_FEATURE_STATE_ENABLED;
                 }
+
+                if (d3d12Features.TiledResourcesTier >= D3D12_TILED_RESOURCES_TIER_1)
+                {
+                    Features.SparseMemory = DEVICE_FEATURE_STATE_ENABLED;
+
+                    auto& SparseMem{AdapterInfo.SparseMemory};
+                    SparseMem.SparseBlockSize = D3D12_TILED_RESOURCE_TILE_SIZE_IN_BYTES;
+
+                    D3D12_FEATURE_DATA_GPU_VIRTUAL_ADDRESS_SUPPORT d3d12Address = {};
+                    if (SUCCEEDED(d3d12Device->CheckFeatureSupport(D3D12_FEATURE_GPU_VIRTUAL_ADDRESS_SUPPORT, &d3d12Address, sizeof(d3d12Address))))
+                    {
+                        SparseMem.AddressSpaceSize  = Uint64{1} << d3d12Address.MaxGPUVirtualAddressBitsPerProcess;
+                        SparseMem.ResourceSpaceSize = Uint64{1} << d3d12Address.MaxGPUVirtualAddressBitsPerResource;
+                    }
+                    else
+                    {
+                        SparseMem.AddressSpaceSize  = Uint64{1} << d3d12Features.MaxGPUVirtualAddressBitsPerResource;
+                        SparseMem.ResourceSpaceSize = Uint64{1} << d3d12Features.MaxGPUVirtualAddressBitsPerResource;
+                    }
+
+                    SparseMem.CapFlags =
+                        SPARSE_MEMORY_CAP_FLAG_BUFFER |
+                        SPARSE_MEMORY_CAP_FLAG_TEXTURE_2D |
+                        SPARSE_MEMORY_CAP_FLAG_RESIDENCY_STANDARD_2D_BLOCK_SHAPE |
+                        SPARSE_MEMORY_CAP_FLAG_ALIASED;
+                    // AZ TODO: When the size of a texture mipmap level is an integer multiple of the standard tile shape for its format, it is guaranteed to be nonpacked.
+
+                    if (d3d12Features.TiledResourcesTier >= D3D12_TILED_RESOURCES_TIER_2)
+                    {
+                        SparseMem.CapFlags |=
+                            SPARSE_MEMORY_CAP_FLAG_SHADER_RESOURCE_RESIDENCY |
+                            SPARSE_MEMORY_CAP_FLAG_RESIDENCY_BUFFER |
+                            SPARSE_MEMORY_CAP_FLAG_RESIDENCY_TEXTURE_2D |
+                            SPARSE_MEMORY_CAP_FLAG_RESIDENCY_ALIASED; // AZ TODO: check
+                    }
+                    if (d3d12Features.TiledResourcesTier >= D3D12_TILED_RESOURCES_TIER_3)
+                    {
+                        SparseMem.CapFlags |= SPARSE_MEMORY_CAP_FLAG_TEXTURE_3D | SPARSE_MEMORY_CAP_FLAG_RESIDENCY_TEXTURE_3D;
+                    }
+
+                    for (Uint32 q = 0; q < AdapterInfo.NumQueues; ++q)
+                        AdapterInfo.Queues[q].QueueType |= COMMAND_QUEUE_TYPE_SPARSE_BINDING;
+                }
             }
 
             D3D12_FEATURE_DATA_D3D12_OPTIONS1 d3d12Features1 = {};
@@ -988,7 +1031,7 @@ GraphicsAdapterInfo EngineFactoryD3D12Impl::GetGraphicsAdapterInfo(void*        
     }
 
 #if defined(_MSC_VER) && defined(_WIN64)
-    static_assert(sizeof(DeviceFeatures) == 38, "Did you add a new feature to DeviceFeatures? Please handle its satus here.");
+    static_assert(sizeof(DeviceFeatures) == 39, "Did you add a new feature to DeviceFeatures? Please handle its satus here.");
 #endif
 
     return AdapterInfo;

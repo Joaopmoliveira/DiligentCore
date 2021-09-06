@@ -1008,4 +1008,139 @@ bool VerifyTraceRaysIndirectAttribs(const IRenderDevice* pDevice, const TraceRay
     return true;
 }
 
+bool VerifyBindSparseMemoryAttribs(const IRenderDevice* pDevice, const BindSparseMemoryAttribs& Attribs)
+{
+#define CHECK_BIND_SPARSE_ATTRIBS(Expr, ...) CHECK_PARAMETER(Expr, "Bind sparse memory attribs are invalid: ", __VA_ARGS__)
+
+    if (Attribs.NumBufferBinds != 0)
+        CHECK_BIND_SPARSE_ATTRIBS(Attribs.pBufferBinds != nullptr, "if NumBufferBinds is not zero then pBufferBinds must not be null");
+    if (Attribs.NumTextureBinds != 0)
+        CHECK_BIND_SPARSE_ATTRIBS(Attribs.pTextureBinds != nullptr, "if NumTextureBinds is not zero then pTextureBinds must not be null");
+    if (Attribs.NumTextureOpaqueBinds != 0)
+        CHECK_BIND_SPARSE_ATTRIBS(Attribs.pTextureOpaqueBinds != nullptr, "if NumTextureOpaqueBinds is not zero then pTextureOpaqueBinds must not be null");
+
+#ifdef DILIGENT_DEVELOPMENT
+    const bool IsMetal = pDevice->GetDeviceInfo().IsMetalDevice();
+
+    for (Uint32 i = 0; i < Attribs.NumBufferBinds; ++i)
+    {
+        const auto& Bind = Attribs.pBufferBinds[i];
+        CHECK_BIND_SPARSE_ATTRIBS(Bind.pBuffer != nullptr, "pBufferBinds[", i, "].pBuffer must not be null");
+
+        const auto& Desc = Bind.pBuffer->GetDesc();
+        CHECK_BIND_SPARSE_ATTRIBS(Desc.Usage == USAGE_SPARSE, "pBufferBinds[", i, "].pBuffer must be created with USAGE_SPARSE");
+
+        const auto& BuffProps = Bind.pBuffer->GetSparseProperties();
+
+        for (Uint32 r = 0; r < Bind.NumRanges; ++r)
+        {
+            const auto& Range = Bind.pRanges[r];
+            CHECK_BIND_SPARSE_ATTRIBS(Range.ResourceOffset + Range.MemorySize <= Desc.Size,
+                                      "pBufferBinds[", i, "].pRanges[", r, "] with ResourceOffset(", Range.ResourceOffset, ") and MemorySize(",
+                                      Range.MemorySize, ") must not be greater than buffer size (", Desc.Size, ")");
+
+            CHECK_BIND_SPARSE_ATTRIBS(Range.pMemory != nullptr,
+                                      "pBufferBinds[", i, "].pRanges[", r, "].pMemory must not be null");
+            CHECK_BIND_SPARSE_ATTRIBS(Range.MemorySize != 0,
+                                      "pBufferBinds[", i, "].pRanges[", r, "].MemorySize must not be zero");
+            CHECK_BIND_SPARSE_ATTRIBS(Range.MemorySize % BuffProps.MemoryAlignment == 0,
+                                      "pBufferBinds[", i, "].pRanges[", r, "].MemorySize must be multiple of buffer memory alignment (", BuffProps.MemoryAlignment, ")");
+
+            const auto Capacity = Range.pMemory->GetCapacity();
+            CHECK_BIND_SPARSE_ATTRIBS(Range.MemoryOffset + Range.MemorySize <= Capacity,
+                                      "pBufferBinds[", i, "].pRanges[", r, "] with MemoryOffset(", Range.MemoryOffset, ") and MemorySize(",
+                                      Range.MemorySize, ") must not be greater than device memory size (", Capacity, ")");
+        }
+    }
+
+    for (Uint32 i = 0; i < Attribs.NumTextureBinds; ++i)
+    {
+        const auto& Bind = Attribs.pTextureBinds[i];
+        CHECK_BIND_SPARSE_ATTRIBS(Bind.pTexture != nullptr, "pTextureBinds[", i, "].pTexture must not be null");
+
+        const auto& Desc = Bind.pTexture->GetDesc();
+        CHECK_BIND_SPARSE_ATTRIBS(Desc.Usage == USAGE_SPARSE, "pTextureBinds[", i, "].pTexture must be created with USAGE_SPARSE");
+
+        const auto& TexProps = Bind.pTexture->GetSparseProperties();
+
+        for (Uint32 r = 0; r < Bind.NumRanges; ++r)
+        {
+            const auto& Range  = Bind.pRanges[r];
+            const auto& Region = Range.Region;
+
+            CHECK_BIND_SPARSE_ATTRIBS(Range.MipLevel < Desc.MipLevels,
+                                      "pTextureBinds[", i, "].pRanges[", r, "].MipLevel(", Range.MipLevel, ") must be less than (", Desc.MipLevels, ")");
+            CHECK_BIND_SPARSE_ATTRIBS(Region.MaxX > Region.MinX,
+                                      "pTextureBinds[", i, "].pRanges[", r, "].Region MaxX must be greater than MinX");
+            CHECK_BIND_SPARSE_ATTRIBS(Region.MaxY > Region.MinY,
+                                      "pTextureBinds[", i, "].pRanges[", r, "].Region MaxY must be greater than MinY");
+            CHECK_BIND_SPARSE_ATTRIBS(Region.MaxZ > Region.MinZ,
+                                      "pTextureBinds[", i, "].pRanges[", r, "].Region MaxZ must be greater than MinZ");
+            CHECK_BIND_SPARSE_ATTRIBS(Region.MaxX <= Desc.Width,
+                                      "pTextureBinds[", i, "].pRanges[", r, "].Region.MaxX(", Region.MaxX, ") must not be greater than (", Desc.Width, ")");
+            CHECK_BIND_SPARSE_ATTRIBS(Region.MaxY <= Desc.Height,
+                                      "pTextureBinds[", i, "].pRanges[", r, "].Region.MaxY(", Region.MaxY, ") must not be greater than (", Desc.Height, ")");
+
+            if (Desc.Type == RESOURCE_DIM_TEX_3D)
+            {
+                CHECK_BIND_SPARSE_ATTRIBS(Region.MaxZ <= Desc.Depth,
+                                          "pTextureBinds[", i, "].pRanges[", r, "].Region.MaxZ(", Region.MaxZ, ") must not be greater than (", Desc.Depth, ")");
+            }
+            else
+            {
+                CHECK_BIND_SPARSE_ATTRIBS(Region.MaxZ <= 1,
+                                          "pTextureBinds[", i, "].pRanges[", r, "].Region.MaxZ(", Region.MaxZ, ") must not be greater than (1)");
+                CHECK_BIND_SPARSE_ATTRIBS(Range.ArraySlice < Desc.ArraySize,
+                                          "pTextureBinds[", i, "].pRanges[", r, "].ArraySlice(", Range.ArraySlice, ") must be less than (", Desc.ArraySize, ")");
+            }
+
+            if (!IsMetal)
+            {
+                CHECK_BIND_SPARSE_ATTRIBS(Range.pMemory != nullptr,
+                                          "pTextureBinds[", i, "].pRanges[", r, "].pMemory must not be null");
+                CHECK_BIND_SPARSE_ATTRIBS(Range.MemorySize != 0,
+                                          "pTextureBinds[", i, "].pRanges[", r, "].MemorySize must not be zero");
+                CHECK_BIND_SPARSE_ATTRIBS(Range.MemorySize % TexProps.MemoryAlignment == 0,
+                                          "pTextureBinds[", i, "].pRanges[", r, "].MemorySize must be multiple of texture memory alignment (", TexProps.MemoryAlignment, ")");
+
+                const auto Capacity = Range.pMemory->GetCapacity();
+                CHECK_BIND_SPARSE_ATTRIBS(Range.MemoryOffset + Range.MemorySize <= Capacity,
+                                          "pTextureBinds[", i, "].pRanges[", r, "] with MemoryOffset(", Range.MemoryOffset, ") and MemorySize(",
+                                          Range.MemorySize, ") must not be greater than device memory size (", Capacity, ")");
+            }
+        }
+    }
+
+    for (Uint32 i = 0; i < Attribs.NumTextureOpaqueBinds; ++i)
+    {
+        const auto& Bind = Attribs.pTextureOpaqueBinds[i];
+        CHECK_BIND_SPARSE_ATTRIBS(Bind.pTexture != nullptr, "pTextureOpaqueBinds[", i, "].pTexture must not be null");
+
+        const auto& Desc = Bind.pTexture->GetDesc();
+        CHECK_BIND_SPARSE_ATTRIBS(Desc.Usage == USAGE_SPARSE, "pTextureOpaqueBinds[", i, "].pTexture must be created with USAGE_SPARSE");
+
+        const auto& TexProps = Bind.pTexture->GetSparseProperties();
+
+        for (Uint32 r = 0; r < Bind.NumRanges; ++r)
+        {
+            const auto& Range = Bind.pRanges[r];
+
+            CHECK_BIND_SPARSE_ATTRIBS(Range.pMemory != nullptr,
+                                      "pTextureOpaqueBinds[", i, "].pRanges[", r, "].pMemory must not be null");
+            CHECK_BIND_SPARSE_ATTRIBS(Range.MemorySize != 0,
+                                      "pTextureOpaqueBinds[", i, "].pRanges[", r, "].MemorySize must not be zero");
+            CHECK_BIND_SPARSE_ATTRIBS(Range.MemorySize % TexProps.MemoryAlignment == 0,
+                                      "pTextureOpaqueBinds[", i, "].pRanges[", r, "].MemorySize must be multiple of texture memory alignment (", TexProps.MemoryAlignment, ")");
+
+            const auto Capacity = Range.pMemory->GetCapacity();
+            CHECK_BIND_SPARSE_ATTRIBS(Range.MemoryOffset + Range.MemorySize <= Capacity,
+                                      "pTextureOpaqueBinds[", i, "].pRanges[", r, "] with MemoryOffset(", Range.MemoryOffset, ") and MemorySize(",
+                                      Range.MemorySize, ") must not be greater than device memory size (", Capacity, ")");
+        }
+    }
+#endif // DILIGENT_DEVELOPMENT
+
+    return true;
+}
+
 } // namespace Diligent

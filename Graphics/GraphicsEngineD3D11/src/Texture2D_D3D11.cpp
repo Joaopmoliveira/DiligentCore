@@ -49,17 +49,21 @@ Texture2D_D3D11::Texture2D_D3D11(IReferenceCounters*        pRefCounters,
     }
 // clang-format on
 {
-    auto D3D11TexFormat      = TexFormatToDXGI_Format(m_Desc.Format, m_Desc.BindFlags);
-    auto D3D11BindFlags      = BindFlagsToD3D11BindFlags(m_Desc.BindFlags);
-    auto D3D11CPUAccessFlags = CPUAccessFlagsToD3D11CPUAccessFlags(m_Desc.CPUAccessFlags);
-    auto D3D11Usage          = UsageToD3D11Usage(m_Desc.Usage);
-    auto MiscFlags           = MiscTextureFlagsToD3D11Flags(m_Desc.MiscFlags);
+    const auto D3D11TexFormat      = TexFormatToDXGI_Format(m_Desc.Format, m_Desc.BindFlags);
+    auto       D3D11BindFlags      = BindFlagsToD3D11BindFlags(m_Desc.BindFlags);
+    const auto D3D11CPUAccessFlags = CPUAccessFlagsToD3D11CPUAccessFlags(m_Desc.CPUAccessFlags);
+    const auto D3D11Usage          = UsageToD3D11Usage(m_Desc.Usage);
+    auto       MiscFlags           = MiscTextureFlagsToD3D11Flags(m_Desc.MiscFlags);
 
     if (MiscFlags & D3D11_RESOURCE_MISC_GENERATE_MIPS)
         D3D11BindFlags |= D3D11_BIND_SHADER_RESOURCE | D3D11_BIND_RENDER_TARGET;
 
     if (m_Desc.Type == RESOURCE_DIM_TEX_CUBE || m_Desc.Type == RESOURCE_DIM_TEX_CUBE_ARRAY)
         MiscFlags |= D3D11_RESOURCE_MISC_TEXTURECUBE;
+
+    if (m_Desc.Usage == USAGE_SPARSE)
+        MiscFlags |= D3D11_RESOURCE_MISC_TILED;
+
     DXGI_SAMPLE_DESC D3D11SampleDesc = {m_Desc.SampleCount, 0};
 
     // clang-format off

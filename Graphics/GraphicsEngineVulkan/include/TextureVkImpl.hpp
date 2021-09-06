@@ -76,6 +76,9 @@ public:
     /// Implementation of ITextureVk::GetLayout().
     virtual VkImageLayout DILIGENT_CALL_TYPE GetLayout() const override final;
 
+    /// Implementation of ITexture::GetSparseProperties().
+    virtual TextureSparseParameters DILIGENT_CALL_TYPE GetSparseProperties() const override final;
+
     VkBuffer GetVkStagingBuffer() const
     {
         return m_StagingBuffer;

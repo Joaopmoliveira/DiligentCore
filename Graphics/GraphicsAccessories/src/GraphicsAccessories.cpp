@@ -783,7 +783,7 @@ const Char* GetMapTypeString(MAP_TYPE MapType)
 /// Returns the string containing the usage
 const Char* GetUsageString(USAGE Usage)
 {
-    static_assert(USAGE_NUM_USAGES == 5, "Please update the function to handle the new usage type");
+    static_assert(USAGE_NUM_USAGES == 6, "Please update the function to handle the new usage type");
 
     static const Char* UsageStrings[USAGE_NUM_USAGES];
     static bool        bUsageStringsInit = false;
@@ -796,6 +796,7 @@ const Char* GetUsageString(USAGE Usage)
         INIT_USGAGE_STR(USAGE_DYNAMIC);
         INIT_USGAGE_STR(USAGE_STAGING);
         INIT_USGAGE_STR(USAGE_UNIFIED);
+        INIT_USGAGE_STR(USAGE_SPARSE);
 #undef  INIT_USGAGE_STR
         // clang-format on
         bUsageStringsInit = true;

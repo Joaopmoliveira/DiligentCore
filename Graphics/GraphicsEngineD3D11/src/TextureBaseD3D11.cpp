@@ -54,6 +54,16 @@ TextureBaseD3D11::TextureBaseD3D11(IReferenceCounters*        pRefCounters,
     if (m_Desc.Usage == USAGE_IMMUTABLE && (pInitData == nullptr || pInitData->pSubResources == nullptr))
         LOG_ERROR_AND_THROW("Immutable textures must be initialized with data at creation time: pInitData can't be null");
 
+    if (m_Desc.Usage == USAGE_SPARSE)
+    {
+        constexpr auto AllowedBindFlags = BIND_SHADER_RESOURCE | BIND_UNORDERED_ACCESS | BIND_RENDER_TARGET | BIND_DEPTH_STENCIL;
+        if ((m_Desc.BindFlags & ~AllowedBindFlags) != 0)
+            LOG_ERROR_AND_THROW("Texture '", m_Desc.Name, "': the following bind flags are not allowed for a sparse texture: ", GetBindFlagsString(m_Desc.BindFlags & ~AllowedBindFlags, ", "), '.');
+
+        // In Direct3D11 sparse resources is always resident and aliased
+        m_Desc.SparseFlags |= SPARSE_RESOURCE_FLAG_RESIDENT | SPARSE_RESOURCE_FLAG_ALIASED;
+    }
+
     SetState(RESOURCE_STATE_UNDEFINED);
 }
 
@@ -159,6 +169,12 @@ void TextureBaseD3D11::PrepareD3D11InitData(const TextureData*                  
 
 TextureBaseD3D11::~TextureBaseD3D11()
 {
+}
+
+TextureSparseParameters TextureBaseD3D11::GetSparseProperties() const
+{
+    // AZ TODO
+    return {};
 }
 
 } // namespace Diligent

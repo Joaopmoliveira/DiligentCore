@@ -101,6 +101,9 @@ public:
     /// Implementation of ITexture::GetNativeHandle() in OpenGL backend.
     virtual Uint64 DILIGENT_CALL_TYPE GetNativeHandle() override final { return BitCast<Uint64>(GetGLTextureHandle()); }
 
+    /// Implementation of ITexture::GetSparseProperties().
+    virtual TextureSparseParameters DILIGENT_CALL_TYPE GetSparseProperties() const override final;
+
     virtual void UpdateData(class GLContextState&    CtxState,
                             Uint32                   MipLevel,
                             Uint32                   Slice,

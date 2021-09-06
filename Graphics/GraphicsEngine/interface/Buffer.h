@@ -81,7 +81,8 @@ struct BufferDesc DILIGENT_DERIVE(DeviceObjectAttribs)
     /// The following bind flags are allowed:
     /// Diligent::BIND_VERTEX_BUFFER, Diligent::BIND_INDEX_BUFFER, Diligent::BIND_UNIFORM_BUFFER,
     /// Diligent::BIND_SHADER_RESOURCE, Diligent::BIND_STREAM_OUTPUT, Diligent::BIND_UNORDERED_ACCESS,
-    /// Diligent::BIND_INDIRECT_DRAW_ARGS, Diligent::BIND_RAY_TRACING
+    /// Diligent::BIND_INDIRECT_DRAW_ARGS, Diligent::BIND_RAY_TRACING.
+    /// Use SparseMemoryProperties::BufferBindFlags to get valid bind flags for sparse buffer.
     BIND_FLAGS BindFlags            DEFAULT_INITIALIZER(BIND_NONE);
 
     /// Buffer usage, see Diligent::USAGE for details
@@ -93,6 +94,9 @@ struct BufferDesc DILIGENT_DERIVE(DeviceObjectAttribs)
 
     /// Buffer mode, see Diligent::BUFFER_MODE
     BUFFER_MODE Mode                DEFAULT_INITIALIZER(BUFFER_MODE_UNDEFINED);
+
+    /// AZ TODO
+    SPARSE_RESOURCE_FLAGS SparseFlags DEFAULT_INITIALIZER(SPARSE_RESOURCE_FLAG_NONE);
 
     /// Buffer element stride, in bytes.
 
@@ -197,6 +201,14 @@ struct BufferData
 #endif
 };
 typedef struct BufferData BufferData;
+
+/// AZ TODO
+struct BufferSparseProperties
+{
+    Uint32  MemoryAlignment  DEFAULT_INITIALIZER(0);
+};
+typedef struct BufferSparseProperties BufferSparseProperties;
+
 
 #define DILIGENT_INTERFACE_NAME IBuffer
 #include "../../../Primitives/interface/DefineInterfaceHelperMacros.h"
@@ -313,6 +325,9 @@ DILIGENT_BEGIN_INTERFACE(IBuffer, IDeviceObject)
     VIRTUAL void METHOD(InvalidateMappedRange)(THIS_
                                                Uint64 StartOffset,
                                                Uint64 Size) PURE;
+
+    /// AZ TODO
+    VIRTUAL BufferSparseProperties METHOD(GetSparseProperties)(THIS) CONST PURE;
 };
 DILIGENT_END_INTERFACE
 
@@ -332,6 +347,7 @@ DILIGENT_END_INTERFACE
 #    define IBuffer_GetMemoryProperties(This)        CALL_IFACE_METHOD(Buffer, GetMemoryProperties,   This)
 #    define IBuffer_FlushMappedRange(This, ...)      CALL_IFACE_METHOD(Buffer, FlushMappedRange,      This, __VA_ARGS__)
 #    define IBuffer_InvalidateMappedRange(This, ...) CALL_IFACE_METHOD(Buffer, InvalidateMappedRange, This, __VA_ARGS__)
+#    define IBuffer_GetSparseProperties(This)        CALL_IFACE_METHOD(Buffer, GetSparseProperties,   This)
 
 // clang-format on
 

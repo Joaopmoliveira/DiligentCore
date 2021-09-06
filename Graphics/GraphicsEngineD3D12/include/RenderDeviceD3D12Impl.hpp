@@ -154,6 +154,14 @@ public:
                                          SHADER_TYPE                          ShaderStages,
                                          bool                                 IsDeviceInternal);
 
+    /// Implementation of IRenderDevice::CreateDeviceMemory() in Direct3D12 backend.
+    virtual void DILIGENT_CALL_TYPE CreateDeviceMemory(const DeviceMemoryCreateInfo& CreateInfo,
+                                                       IDeviceMemory**               ppMemory) override final;
+
+    /// Implementation of IRenderDevice::GetTextureFormatSparseInfo() in Direct3D12 backend.
+    virtual TextureFormatSparseInfo DILIGENT_CALL_TYPE GetTextureFormatSparseInfo(TEXTURE_FORMAT     TexFormat,
+                                                                                  RESOURCE_DIMENSION Dimension) const override final;
+
     /// Implementation of IRenderDeviceD3D12::GetD3D12Device().
     virtual ID3D12Device* DILIGENT_CALL_TYPE GetD3D12Device() override final { return m_pd3d12Device; }
 
