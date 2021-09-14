@@ -88,6 +88,9 @@ Texture3D_D3D11::Texture3D_D3D11(IReferenceCounters*        pRefCounters,
         hr = m_pd3d11Texture->SetPrivateData(WKPDID_D3DDebugObjectName, static_cast<UINT>(strlen(m_Desc.Name)), m_Desc.Name);
         DEV_CHECK_ERR(SUCCEEDED(hr), "Failed to set texture name");
     }
+
+    if (m_Desc.Usage == USAGE_SPARSE)
+        InitSparseProperties();
 }
 
 namespace

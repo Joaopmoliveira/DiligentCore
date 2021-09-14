@@ -41,16 +41,16 @@ namespace Diligent
 DeviceMemoryD3D11Impl::DeviceMemoryD3D11Impl(IReferenceCounters*           pRefCounters,
                                              RenderDeviceD3D11Impl*        pRenderDeviceD3D11,
                                              const DeviceMemoryCreateInfo& MemCI) :
-    TDeviceMemoryBase{pRefCounters, pRenderDeviceD3D11, MemCI.Desc}
+    TDeviceMemoryBase{pRefCounters, pRenderDeviceD3D11, MemCI}
 {
     D3D11_BUFFER_DESC D3D11BuffDesc{};
-    D3D11BuffDesc.ByteWidth = 0;
+    D3D11BuffDesc.ByteWidth = StaticCast<UINT>(MemCI.InitialSize);
     D3D11BuffDesc.MiscFlags = D3D11_RESOURCE_MISC_TILE_POOL;
     D3D11BuffDesc.Usage     = D3D11_USAGE_DEFAULT;
 
-    auto* pDeviceD3D11 = pRenderDeviceD3D11->GetD3D11Device();
+    auto* pDeviceD3D11 = m_pDevice->GetD3D11Device();
     CHECK_D3D_RESULT_THROW(pDeviceD3D11->CreateBuffer(&D3D11BuffDesc, nullptr, &m_pd3d11Buffer),
-                           "Failed to create the Direct3D11 tile pool");
+                           "Failed to create Direct3D11 tile pool");
 }
 
 DeviceMemoryD3D11Impl::~DeviceMemoryD3D11Impl()
@@ -61,15 +61,26 @@ IMPLEMENT_QUERY_INTERFACE(DeviceMemoryD3D11Impl, IID_DeviceMemoryD3D11, TDeviceM
 
 Bool DeviceMemoryD3D11Impl::Resize(Uint64 NewSize)
 {
+    D3D11_BUFFER_DESC d3d11Desc{};
+    m_pd3d11Buffer->GetDesc(&d3d11Desc);
+
+    if (d3d11Desc.ByteWidth == NewSize)
+        return true;
+
     DvpVerifyResize(NewSize);
 
-    // AZ TODO: use ID3D11DeviceContext2::ResizeTilePool
-    return false;
+    auto pImmediateCtx = m_pDevice->GetImmediateContext(0);
+    VERIFY(pImmediateCtx, "Immediate context has been released");
+
+    return pImmediateCtx->ResizeTilePool(m_pd3d11Buffer, StaticCast<UINT>(NewSize));
 }
 
 Uint64 DeviceMemoryD3D11Impl::GetCapacity()
 {
-    return 0;
+    D3D11_BUFFER_DESC d3d11Desc{};
+    m_pd3d11Buffer->GetDesc(&d3d11Desc);
+
+    return d3d11Desc.ByteWidth;
 }
 
 Bool DeviceMemoryD3D11Impl::IsCompatible(IDeviceObject* pResource) const

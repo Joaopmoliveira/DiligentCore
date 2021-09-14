@@ -298,7 +298,13 @@ DILIGENT_BEGIN_INTERFACE(IRenderDevice, IObject)
                                                          IPipelineResourceSignature**            ppSignature) PURE;
 
 
-    /// AZ TODO
+    /// Creates a device memory object.
+    
+    /// \param [in]  CreateInfo - Device memory create info, see Diligent::DeviceMemoryCreateInfo for details.
+    /// \param [out] ppMemory   - Address of the memory location where the pointer to the
+    ///                           device memory interface will be stored.
+    ///                           The function calls AddRef(), so that the new object will have
+    ///                           one reference.
     VIRTUAL void METHOD(CreateDeviceMemory)(THIS_
                                             const DeviceMemoryCreateInfo REF CreateInfo,
                                             IDeviceMemory**                  ppMemory) PURE;

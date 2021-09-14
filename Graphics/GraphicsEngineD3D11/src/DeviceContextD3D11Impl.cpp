@@ -41,6 +41,7 @@
 #include "RenderDeviceD3D11Impl.hpp"
 #include "FenceD3D11Impl.hpp"
 #include "QueryD3D11Impl.hpp"
+#include "DeviceMemoryD3D11Impl.hpp"
 
 namespace Diligent
 {
@@ -1858,7 +1859,7 @@ void DeviceContextD3D11Impl::EnqueueSignal(IFence* pFence, Uint64 Value)
 
 void DeviceContextD3D11Impl::DeviceWaitForFence(IFence* pFence, Uint64 Value)
 {
-    DEV_ERROR("DeviceWaitForFence() is not supported in Direct3D11");
+    LOG_INFO_MESSAGE_ONCE("DeviceWaitForFence() is not supported in Direct3D11");
 }
 
 void DeviceContextD3D11Impl::WaitForIdle()
@@ -2216,7 +2217,167 @@ void DeviceContextD3D11Impl::SetShadingRate(SHADING_RATE BaseRate, SHADING_RATE_
 
 void DeviceContextD3D11Impl::BindSparseMemory(const BindSparseMemoryAttribs& Attribs)
 {
+    TDeviceContextBase::BindSparseMemory(Attribs, 0);
+
+    if (Attribs.NumBufferBinds == 0 && Attribs.NumTextureBinds == 0)
+        return;
+
+    Flush();
+
+#ifdef DILIGENT_DEVELOPMENT
+    {
+        CComPtr<ID3D11DeviceContext2> pCtx2;
+        DEV_CHECK_ERR(SUCCEEDED(m_pd3d11DeviceContext->QueryInterface(&pCtx2)), "Failed to get ID3D11DeviceContext2");
+    }
+#endif
+
+    auto* pd3d11DeviceContext2 = static_cast<ID3D11DeviceContext2*>(m_pd3d11DeviceContext.p);
+
     // AZ TODO
+
+    std::vector<D3D11_TILED_RESOURCE_COORDINATE> Coordinates;
+    std::vector<D3D11_TILE_REGION_SIZE>          RegionSizes;
+    std::vector<UINT>                            RangeFlags; // D3D11_TILE_RANGE_FLAG
+    std::vector<UINT>                            StartOffsets;
+    std::vector<UINT>                            RangeTileCounts;
+    ID3D11Buffer*                                pTilePool = nullptr;
+
+    auto UpdateTileMappingsAndClear = [&](ID3D11Resource* pResource) //
+    {
+        if (pTilePool != nullptr && !Coordinates.empty())
+        {
+            pd3d11DeviceContext2->UpdateTileMappings(pResource,
+                                                     static_cast<UINT>(Coordinates.size()),
+                                                     Coordinates.data(),
+                                                     RegionSizes.data(),
+                                                     pTilePool,
+                                                     static_cast<UINT>(RangeFlags.size()),
+                                                     RangeFlags.data(),
+                                                     StartOffsets.data(),
+                                                     RangeTileCounts.data(),
+                                                     D3D11_TILE_MAPPING_NO_OVERWRITE);
+        }
+        Coordinates.clear();
+        RegionSizes.clear();
+        RangeFlags.clear();
+        StartOffsets.clear();
+        RangeTileCounts.clear();
+        pTilePool = nullptr;
+    };
+
+    auto UpdateTilePool = [&](DeviceMemoryD3D11Impl* pMemD3D11) //
+    {
+        if (pTilePool != nullptr)
+        {
+            if (pMemD3D11 != nullptr && pTilePool != pMemD3D11->GetD3D11TilePool())
+            {
+                LOG_ERROR_MESSAGE("IDeviceContext::BindSparseMemory(): can not bind multiple memory objects to a single resource, this is Direct3D11 limitation");
+
+                // all previous mapping will be unmapped
+                Coordinates.clear();
+                RegionSizes.clear();
+                RangeFlags.clear();
+                StartOffsets.clear();
+                RangeTileCounts.clear();
+            }
+        }
+        else if (pMemD3D11 != nullptr)
+        {
+            pTilePool = pMemD3D11->GetD3D11TilePool();
+        }
+    };
+
+    for (Uint32 i = 0; i < Attribs.NumBufferBinds; ++i)
+    {
+        const auto& Src        = Attribs.pBufferBinds[i];
+        auto*       pBuffD3D11 = ClassPtrCast<BufferD3D11Impl>(Src.pBuffer);
+
+        for (Uint32 r = 0; r < Src.NumRanges; ++r)
+        {
+            const auto& SrcRange  = Src.pRanges[r];
+            auto*       pMemD3D11 = ClassPtrCast<DeviceMemoryD3D11Impl>(SrcRange.pMemory);
+
+            DEV_CHECK_ERR(SrcRange.MemoryOffset % D3D11_2_TILED_RESOURCE_TILE_SIZE_IN_BYTES == 0,
+                          "MemoryOffset must be multiple of sparse block size");
+
+            Coordinates.emplace_back();
+            auto& Coord = Coordinates.back();
+            Coord.X     = static_cast<UINT>(SrcRange.BufferOffset / D3D11_2_TILED_RESOURCE_TILE_SIZE_IN_BYTES);
+
+            RegionSizes.emplace_back();
+            auto& Size    = RegionSizes.back();
+            Size.Width    = SrcRange.MemorySize / D3D11_2_TILED_RESOURCE_TILE_SIZE_IN_BYTES;
+            Size.Height   = 1;
+            Size.Depth    = 1;
+            Size.bUseBox  = FALSE;
+            Size.NumTiles = Size.Width;
+
+            RangeFlags.emplace_back(pMemD3D11 ? D3D11_TILE_RANGE_FLAG(0) : D3D11_TILE_RANGE_NULL);
+            StartOffsets.emplace_back(SrcRange.MemoryOffset / D3D11_2_TILED_RESOURCE_TILE_SIZE_IN_BYTES);
+            RangeTileCounts.emplace_back(SrcRange.MemorySize / D3D11_2_TILED_RESOURCE_TILE_SIZE_IN_BYTES);
+
+            UpdateTilePool(pMemD3D11);
+        }
+
+        UpdateTileMappingsAndClear(pBuffD3D11->GetD3D11Buffer());
+    }
+
+    for (Uint32 i = 0; i < Attribs.NumTextureBinds; ++i)
+    {
+        const auto& Src            = Attribs.pTextureBinds[i];
+        auto*       pTexD3D11      = ClassPtrCast<TextureBaseD3D11>(Src.pTexture);
+        const auto& TexSparseProps = pTexD3D11->GetSparseProperties();
+        const auto& TexDesc        = pTexD3D11->GetDesc();
+
+        for (Uint32 r = 0; r < Src.NumRanges; ++r)
+        {
+            const auto& SrcRange  = Src.pRanges[r];
+            auto*       pMemD3D11 = ClassPtrCast<DeviceMemoryD3D11Impl>(SrcRange.pMemory);
+
+            Coordinates.emplace_back();
+            auto& Coord = Coordinates.back();
+            Coord.X     = SrcRange.Region.MinX / TexSparseProps.TileSize[0];
+            Coord.Y     = SrcRange.Region.MinY / TexSparseProps.TileSize[1];
+            Coord.Z     = SrcRange.Region.MinZ / TexSparseProps.TileSize[2];
+
+            if (TexDesc.Type == RESOURCE_DIM_TEX_3D)
+                Coord.Subresource = D3D11CalcSubresource(SrcRange.MipLevel, 0, TexDesc.MipLevels);
+            else
+                Coord.Subresource = D3D11CalcSubresource(SrcRange.MipLevel, SrcRange.ArraySlice, TexDesc.MipLevels);
+
+            RegionSizes.emplace_back();
+            auto& Size    = RegionSizes.back();
+            Size.Width    = (SrcRange.Region.Width() + TexSparseProps.TileSize[0] - 1) / TexSparseProps.TileSize[0];
+            Size.Height   = static_cast<UINT16>((SrcRange.Region.Height() + TexSparseProps.TileSize[1] - 1) / TexSparseProps.TileSize[1]);
+            Size.Depth    = static_cast<UINT16>((SrcRange.Region.Depth() + TexSparseProps.TileSize[2] - 1) / TexSparseProps.TileSize[2]);
+            Size.bUseBox  = FALSE;
+            Size.NumTiles = Size.Width * Size.Height * Size.Depth;
+
+            RangeFlags.emplace_back(pMemD3D11 ? D3D11_TILE_RANGE_FLAG(0) : D3D11_TILE_RANGE_NULL);
+            StartOffsets.emplace_back(SrcRange.MemoryOffset / D3D11_2_TILED_RESOURCE_TILE_SIZE_IN_BYTES);
+            RangeTileCounts.emplace_back(SrcRange.MemorySize / D3D11_2_TILED_RESOURCE_TILE_SIZE_IN_BYTES);
+
+            UpdateTilePool(pMemD3D11);
+        }
+
+        UpdateTileMappingsAndClear(pTexD3D11->GetD3D11Texture());
+    }
+
+    Flush();
+}
+
+bool DeviceContextD3D11Impl::ResizeTilePool(ID3D11Buffer* pBuffer, UINT NewSize)
+{
+#ifdef DILIGENT_DEVELOPMENT
+    {
+        CComPtr<ID3D11DeviceContext2> pCtx2;
+        DEV_CHECK_ERR(SUCCEEDED(m_pd3d11DeviceContext->QueryInterface(&pCtx2)), "Failed to get ID3D11DeviceContext2");
+    }
+#endif
+
+    auto* pd3d11DeviceContext2 = static_cast<ID3D11DeviceContext2*>(m_pd3d11DeviceContext.p);
+
+    return SUCCEEDED(pd3d11DeviceContext2->ResizeTilePool(pBuffer, NewSize));
 }
 
 void DeviceContextD3D11Impl::BeginDebugGroup(const Char* Name, const float* pColor)

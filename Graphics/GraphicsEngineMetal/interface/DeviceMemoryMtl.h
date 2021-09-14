@@ -5,13 +5,11 @@
  *  you may not use this file except in compliance with the License.
  *  You may obtain a copy of the License at
  *
- *      http://www.apache.org/licenses/LICENSE-2.0
+ *     http://www.apache.org/licenses/LICENSE-2.0
  *
- *  Unless required by applicable law or agreed to in writing, software
- *  distributed under the License is distributed on an "AS IS" BASIS,
- *  WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
- *  See the License for the specific language governing permissions and
- *  limitations under the License.
+ *  THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+ *  IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+ *  FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT OF ANY PROPRIETARY RIGHTS.
  *
  *  In no event and under no legal theory, whether in tort (including negligence),
  *  contract, or otherwise, unless required by applicable law (such as deliberate
@@ -27,31 +25,30 @@
 #pragma once
 
 /// \file
-/// Definition of the Diligent::IDeviceMemoryD3D11 interface
+/// Definition of the Diligent::IDeviceMemoryMtl interface
 
 #include "../../GraphicsEngine/interface/DeviceMemory.h"
 
 DILIGENT_BEGIN_NAMESPACE(Diligent)
 
-// {99DADE81-04F7-4C81-AE06-32B25F5B45AA}
-static const INTERFACE_ID IID_DeviceMemoryD3D11 =
-    {0x99dade81, 0x4f7, 0x4c81, {0xae, 0x6, 0x32, 0xb2, 0x5f, 0x5b, 0x45, 0xaa}};
+// {FAA1CD77-590A-408B-B0E8-C21CD062542C}
+static const INTERFACE_ID IID_DeviceMemoryMtl =
+    {0xfaa1cd77, 0x590a, 0x408b, {0xb0, 0xe8, 0xc2, 0x1c, 0xd0, 0x62, 0x54, 0x2c)};
 
-#define DILIGENT_INTERFACE_NAME IDeviceMemoryD3D11
+#define DILIGENT_INTERFACE_NAME IDeviceMemoryMtl
 #include "../../../Primitives/interface/DefineInterfaceHelperMacros.h"
 
-#define IDeviceMemoryD3D11InclusiveMethods \
-    IDeviceMemoryInclusiveMethods;         \
-    IDeviceMemoryD3D11Methods DeviceMemoryD3D11
+#define IDeviceMemoryMtlInclusiveMethods \
+    IDeviceMemoryInclusiveMethods;       \
+    IDeviceMemoryMtlMethods DeviceMemoryMtl
 
-/// Exposes Direct3D11-specific functionality of a device memory object.
-DILIGENT_BEGIN_INTERFACE(IDeviceMemoryD3D11, IDeviceMemory)
+// clang-format off
+
+/// Exposes Metal-specific functionality of a device memory object.
+DILIGENT_BEGIN_INTERFACE(IDeviceMemoryMtl, IDeviceMemory)
 {
-    /// Returns a pointer to the ID3D11Buffer interface of the internal Direct3D11 object.
-
-    /// The method does *NOT* increment the reference counter of the returned object,
-    /// so Release() must not be called.
-    VIRTUAL ID3D11Buffer* METHOD(GetD3D11TilePool)(THIS) PURE;
+    /// Returns a pointer to a Metal heap object.
+    VIRTUAL id<MTLHeap> METHOD(GetMtlResource)(THIS) CONST PURE;
 };
 DILIGENT_END_INTERFACE
 
@@ -59,7 +56,7 @@ DILIGENT_END_INTERFACE
 
 #if DILIGENT_C_INTERFACE
 
-#    define IDeviceMemoryD3D11_GetD3D11TilePool(This) CALL_IFACE_METHOD(DeviceMemoryD3D11, GetD3D11TilePool, This)
+#    define IDeviceMemoryMtl_GetMtlResource(This) CALL_IFACE_METHOD(DeviceMemoryMtl, GetMtlResource, This)
 
 #endif
 

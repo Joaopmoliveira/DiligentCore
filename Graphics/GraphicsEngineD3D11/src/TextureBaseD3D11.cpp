@@ -171,10 +171,41 @@ TextureBaseD3D11::~TextureBaseD3D11()
 {
 }
 
-TextureSparseParameters TextureBaseD3D11::GetSparseProperties() const
+void TextureBaseD3D11::InitSparseProperties()
 {
-    // AZ TODO
-    return {};
+    VERIFY_EXPR(m_Desc.Usage == USAGE_SPARSE);
+    VERIFY_EXPR(m_pSparseProps == nullptr);
+
+    m_pSparseProps = ALLOCATE(m_pDevice->GetTexSparsePropsAllocator(), "TextureSparseProperties", TextureSparseProperties, 1);
+
+    auto* pd3d11Device2 = m_pDevice->GetD3D11Device2();
+
+    UINT                  NumTilesForEntireResource = 0;
+    D3D11_PACKED_MIP_DESC PackedMipDesc;
+    D3D11_TILE_SHAPE      StandardTileShapeForNonPackedMips;
+    UINT                  NumSubresourceTilings = 0;
+    pd3d11Device2->GetResourceTiling(m_pd3d11Texture,
+                                     &NumTilesForEntireResource,
+                                     &PackedMipDesc,
+                                     &StandardTileShapeForNonPackedMips,
+                                     &NumSubresourceTilings,
+                                     0,
+                                     nullptr);
+
+    auto& Props           = *m_pSparseProps;
+    Props.MemorySize      = NumTilesForEntireResource * D3D11_2_TILED_RESOURCE_TILE_SIZE_IN_BYTES;
+    Props.MemoryAlignment = D3D11_2_TILED_RESOURCE_TILE_SIZE_IN_BYTES;
+    Props.MipTailOffset   = PackedMipDesc.StartTileIndexInOverallResource * D3D11_2_TILED_RESOURCE_TILE_SIZE_IN_BYTES;
+    Props.MipTailSize     = PackedMipDesc.NumTilesForPackedMips * D3D11_2_TILED_RESOURCE_TILE_SIZE_IN_BYTES;
+    Props.MipTailStride   = (Uint32{PackedMipDesc.NumPackedMips} + PackedMipDesc.NumStandardMips) * D3D11_2_TILED_RESOURCE_TILE_SIZE_IN_BYTES;
+    Props.FirstMipInTail  = PackedMipDesc.NumStandardMips;
+    Props.TileSize[0]     = StandardTileShapeForNonPackedMips.WidthInTexels;
+    Props.TileSize[1]     = StandardTileShapeForNonPackedMips.HeightInTexels;
+    Props.TileSize[2]     = StandardTileShapeForNonPackedMips.DepthInTexels;
+    Props.Flags           = SPARSE_TEXTURE_FLAG_NONE;
+
+    if (m_Desc.Type != RESOURCE_DIM_TEX_3D && m_Desc.ArraySize > 1)
+        VERIFY_EXPR(Props.MipTailStride * m_Desc.ArraySize == Props.MemorySize);
 }
 
 } // namespace Diligent

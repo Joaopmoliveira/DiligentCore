@@ -2053,4 +2053,25 @@ VkImageCreateFlags SparseResFlagsToVkImageCreateFlags(SPARSE_RESOURCE_FLAGS Flag
     return Result;
 }
 
+SPARSE_TEXTURE_FLAGS VkSparseImageFormatFlagsToSparseTextureFlags(VkSparseImageFormatFlags Flags)
+{
+    SPARSE_TEXTURE_FLAGS Result = SPARSE_TEXTURE_FLAG_NONE;
+    while (Flags != 0)
+    {
+        auto FlagBit = static_cast<VkSparseImageFormatFlagBits>(ExtractLSB(Flags));
+        static_assert(SPARSE_TEXTURE_FLAG_LAST == (1u << 2), "This function must be updated to handle new sparse texture flag");
+        switch (FlagBit)
+        {
+            // clang-format off
+            case VK_SPARSE_IMAGE_FORMAT_SINGLE_MIPTAIL_BIT:         Result |= SPARSE_TEXTURE_FLAG_SINGLE_MIPTAIL;         break;
+            case VK_SPARSE_IMAGE_FORMAT_ALIGNED_MIP_SIZE_BIT:       Result |= SPARSE_TEXTURE_FLAG_ALIGNED_MIP_SIZE;       break;
+            case VK_SPARSE_IMAGE_FORMAT_NONSTANDARD_BLOCK_SIZE_BIT: Result |= SPARSE_TEXTURE_FLAG_NONSTANDARD_BLOCK_SIZE; break;
+            // clang-format on
+            default:
+                UNEXPECTED("Unexpected sparse image format flag");
+        }
+    }
+    return Result;
+}
+
 } // namespace Diligent

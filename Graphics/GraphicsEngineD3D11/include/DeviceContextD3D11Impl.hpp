@@ -304,6 +304,8 @@ public:
     void TransitionResource(TextureBaseD3D11& Texture, RESOURCE_STATE NewState, RESOURCE_STATE OldState = RESOURCE_STATE_UNKNOWN, bool UpdateResourceState = true);
     void TransitionResource(BufferD3D11Impl& Buffer, RESOURCE_STATE NewState, RESOURCE_STATE OldState = RESOURCE_STATE_UNKNOWN, bool UpdateResourceState = true);
 
+    bool ResizeTilePool(ID3D11Buffer* pBuffer, UINT NewSize);
+
 private:
     /// Commits d3d11 index buffer to d3d11 device context.
     void CommitD3D11IndexBuffer(VALUE_TYPE IndexType);

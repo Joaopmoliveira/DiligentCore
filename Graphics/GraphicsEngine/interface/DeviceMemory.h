@@ -39,22 +39,25 @@ static const INTERFACE_ID IID_DeviceMemory =
 
 // clang-format off
 
+/// Describes the device memory type.
+
+/// This enumeration is used by DeviceMemoryDesc structure.
 DILIGENT_TYPED_ENUM(DEVICE_MEMORY_TYPE, Uint8)
 {
-    /// AZ TODO
     DEVICE_MEMORY_TYPE_NONE   = 0,
 
-    /// AZ TODO
+    /// Indicates that memory will be used for sparse resources.
     DEVICE_MEMORY_TYPE_SPARSE = 1,
 };
 
 /// Device memory description
 struct DeviceMemoryDesc DILIGENT_DERIVE(DeviceObjectAttribs)
-
-    /// AZ TODO
+    
+    /// Memory type, see Diligent::DEVICE_MEMORY_TYPE.
     DEVICE_MEMORY_TYPE  Type                  DEFAULT_INITIALIZER(DEVICE_MEMORY_TYPE_NONE);
 
-    /// AZ TODO
+    /// Size of the memory page.
+    /// Depends on implementation memory may be allocated to a single block or as array of pages.
     Uint32              PageSize              DEFAULT_INITIALIZER(0);
     
     /// Defines which immediate contexts are allowed to execute commands that use this device memory.
@@ -82,16 +85,22 @@ struct DeviceMemoryDesc DILIGENT_DERIVE(DeviceObjectAttribs)
 };
 typedef struct DeviceMemoryDesc DeviceMemoryDesc;
 
-/// AZ TODO
+/// Device memory creation attributes
 struct DeviceMemoryCreateInfo
 {
-    /// AZ TODO
+    /// Device memory description
     DeviceMemoryDesc  Desc;
     
-    /// AZ TODO
+    /// Initial size of the memory object.
+    /// Some implementation does not support IDeviceMemory::Resize() and memory can be allocated only during creation.
+    Uint64            InitialSize           DEFAULT_INITIALIZER(0);
+    
+    /// Array of the resources for which memory must be compatible.
+    /// For sparse memory only buffer and texture resources which was created with USAGE_SPARSE are supported.
+    /// Vulkan backend requires at least one resource to be specified.
     IDeviceObject**   ppCompatibleResources DEFAULT_INITIALIZER(nullptr);
     
-    /// AZ TODO
+    /// Number of elements in the ppCompatibleResources.
     Uint32            NumResources          DEFAULT_INITIALIZER(0);
 };
 typedef struct DeviceMemoryCreateInfo DeviceMemoryCreateInfo;
@@ -117,14 +126,23 @@ DILIGENT_BEGIN_INTERFACE(IDeviceMemory, IDeviceObject)
     virtual const DeviceMemoryDesc& METHOD(GetDesc)() const override = 0;
 #endif
 
-    /// AZ TODO
+    /// Resizes the internal memory object.
+    
+    /// \param [in] NewSize - New size of the memory object, must be multiple of DeviceMemoryDesc::PageSize.
+    /// 
+    /// \remarks  Depends on implementation it can resize existing memory object or
+    ///           create or destroy pages with memory objects.
+    /// 
+    /// \remarks  Must be externally synchronized with IDeviceMemory::GetCapacity() and IDeviceContext::BindSparseMemory().
     VIRTUAL Bool METHOD(Resize)(THIS_
                                 Uint64 NewSize) PURE;
 
-    /// AZ TODO
+    /// Returns current size of the memory object.
+    
+    /// \remarks  Must be externally synchronized with IDeviceMemory::Resize() and IDeviceContext::BindSparseMemory().
     VIRTUAL Uint64 METHOD(GetCapacity)(THIS) PURE;
 
-    /// AZ TODO
+    /// Checks is resource compatible with memory object.
     VIRTUAL Bool METHOD(IsCompatible)(THIS_
                                       IDeviceObject* pResource) CONST PURE;
 

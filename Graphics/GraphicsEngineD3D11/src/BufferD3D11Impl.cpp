@@ -299,8 +299,12 @@ void BufferD3D11Impl::CreateSRV(struct BufferViewDesc& SRVDesc, ID3D11ShaderReso
 
 BufferSparseProperties BufferD3D11Impl::GetSparseProperties() const
 {
-    // AZ TODO
-    return {};
+    DEV_CHECK_ERR(m_Desc.Usage == USAGE_SPARSE,
+                  "IBuffer::GetSparseProperties() must be used for sparse buffer");
+
+    BufferSparseProperties Props;
+    Props.MemoryAlignment = D3D11_2_TILED_RESOURCE_TILE_SIZE_IN_BYTES;
+    return Props;
 }
 
 } // namespace Diligent

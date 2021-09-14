@@ -40,8 +40,10 @@ namespace Diligent
 DeviceMemoryD3D12Impl::DeviceMemoryD3D12Impl(IReferenceCounters*           pRefCounters,
                                              RenderDeviceD3D12Impl*        pDeviceD3D11,
                                              const DeviceMemoryCreateInfo& MemCI) :
-    TDeviceMemoryBase{pRefCounters, pDeviceD3D11, MemCI.Desc}
+    TDeviceMemoryBase{pRefCounters, pDeviceD3D11, MemCI}
 {
+    if (!Resize(MemCI.InitialSize))
+        LOG_ERROR_AND_THROW("Failed to allocate device memory");
 }
 
 DeviceMemoryD3D12Impl::~DeviceMemoryD3D12Impl()
@@ -60,7 +62,7 @@ Bool DeviceMemoryD3D12Impl::Resize(Uint64 NewSize)
     D3D12_HEAP_DESC d3d12HeapDesc{};
     d3d12HeapDesc.SizeInBytes                     = m_Desc.PageSize;
     d3d12HeapDesc.Properties.Type                 = D3D12_HEAP_TYPE_DEFAULT;
-    d3d12HeapDesc.Properties.CPUPageProperty      = D3D12_CPU_PAGE_PROPERTY_NOT_AVAILABLE;
+    d3d12HeapDesc.Properties.CPUPageProperty      = D3D12_CPU_PAGE_PROPERTY_UNKNOWN;
     d3d12HeapDesc.Properties.MemoryPoolPreference = D3D12_MEMORY_POOL_UNKNOWN;
     d3d12HeapDesc.Properties.CreationNodeMask     = 0;                                          // equivalent to 1
     d3d12HeapDesc.Properties.VisibleNodeMask      = 0;                                          // equivalent to 1

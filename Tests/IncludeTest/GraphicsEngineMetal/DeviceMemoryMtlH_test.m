@@ -1,6 +1,5 @@
 /*
  *  Copyright 2019-2021 Diligent Graphics LLC
- *  Copyright 2015-2019 Egor Yusov
  *
  *  Licensed under the Apache License, Version 2.0 (the "License");
  *  you may not use this file except in compliance with the License.
@@ -25,20 +24,11 @@
  *  of the possibility of such damages.
  */
 
-#include "DiligentCore/Graphics/GraphicsEngine/interface/Texture.h"
+#include <Metal/Metal.h>
+#include "DiligentCore/Graphics/GraphicsEngineMetal/interface/DeviceMemoryMtl.h"
 
-void TestTexture_CInterface(ITexture* pTexture)
+void TestDeviceMemoryMtl_CInterface(IDeviceMemoryMtl* pMem)
 {
-    const TextureDesc* pDesc = ITexture_GetDesc(pTexture);
-    (void)pDesc;
-    ITexture_CreateView(pTexture, (const TextureViewDesc*)NULL, (ITextureView**)NULL);
-    ITextureView* pView = ITexture_GetDefaultView(pTexture, TEXTURE_VIEW_UNDEFINED);
-    (void)pView;
-    Uint64 Handle = ITexture_GetNativeHandle(pTexture);
-    (void)Handle;
-    ITexture_SetState(pTexture, RESOURCE_STATE_UNKNOWN);
-    RESOURCE_STATE State = ITexture_GetState(pTexture);
-    (void)State;
-    const TextureSparseProperties* pSparseProps = ITexture_GetSparseProperties(pTexture);
-    (void)pSparseProps;
+    id<MTLHeap> mtlHeap = IDeviceMemoryMtl_GetMtlResource(pMem);
+    (void)mtlHeap;
 }

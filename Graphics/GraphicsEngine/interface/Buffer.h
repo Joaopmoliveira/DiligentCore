@@ -95,7 +95,7 @@ struct BufferDesc DILIGENT_DERIVE(DeviceObjectAttribs)
     /// Buffer mode, see Diligent::BUFFER_MODE
     BUFFER_MODE Mode                DEFAULT_INITIALIZER(BUFFER_MODE_UNDEFINED);
 
-    /// AZ TODO
+    /// Buffer sparse flags, see Diligent::SPARSE_RESOURCE_FLAGS
     SPARSE_RESOURCE_FLAGS SparseFlags DEFAULT_INITIALIZER(SPARSE_RESOURCE_FLAG_NONE);
 
     /// Buffer element stride, in bytes.
@@ -202,9 +202,11 @@ struct BufferData
 };
 typedef struct BufferData BufferData;
 
-/// AZ TODO
+/// Describes the sparse buffer properties
 struct BufferSparseProperties
 {
+    /// Required alignment for memory offset and offset in buffer which is used in sparse binding command,
+    /// see Diligent::SparseBufferMemoryBindRange.
     Uint32  MemoryAlignment  DEFAULT_INITIALIZER(0);
 };
 typedef struct BufferSparseProperties BufferSparseProperties;
@@ -326,7 +328,7 @@ DILIGENT_BEGIN_INTERFACE(IBuffer, IDeviceObject)
                                                Uint64 StartOffset,
                                                Uint64 Size) PURE;
 
-    /// AZ TODO
+    /// Returns the buffer sparse memory properties
     VIRTUAL BufferSparseProperties METHOD(GetSparseProperties)(THIS) CONST PURE;
 };
 DILIGENT_END_INTERFACE

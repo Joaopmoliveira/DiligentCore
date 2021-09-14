@@ -126,7 +126,7 @@ void CommandQueueD3D12Impl::WaitFence(ID3D12Fence* pFence, Uint64 Value)
     m_pd3d12CmdQueue->Wait(pFence, Value);
 }
 
-void CommandQueueD3D12Impl::UpdateTileMappings(ResourceTileMappings* pMappings, Uint32 Count)
+void CommandQueueD3D12Impl::UpdateTileMappings(ResourceTileMappingsD3D12* pMappings, Uint32 Count)
 {
     DEV_CHECK_ERR(pMappings != nullptr, "");
 

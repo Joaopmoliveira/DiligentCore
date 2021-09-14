@@ -209,7 +209,7 @@ DILIGENT_TYPED_ENUM(USAGE, Uint8)
     ///          (see Diligent::AdapterMemoryInfo::UnifiedMemoryCPUAccess).
     USAGE_UNIFIED,
 
-    /// AZ TODO
+    /// A resource that can be bound and unbound to the memory.
     /// Sparse resources don't have the restriction on total memory size.
     USAGE_SPARSE,
 
@@ -2495,9 +2495,8 @@ DILIGENT_TYPED_ENUM(SHADING_RATE_CAP_FLAGS, Uint16)
     /// HLSL: in SV_ShadingRate, GLSL: gl_ShadingRate.
     SHADING_RATE_CAP_FLAG_SHADING_RATE_SHADER_INPUT = 1u << 9,
 
-    /// Indicates that VRS texture is accessed on the GPU side.
-    /// If the flag is not set, the texture content is accessed
-    /// on the CPU side when render pass begins.
+    /// Indicates that VRS texture will be accessed on the GPU side.
+    /// Otherwise texture content will be accessed on the CPU side when render pass will begin.
     SHADING_RATE_CAP_FLAG_TEXTURE_DEVICE_ACCESS     = 1u << 10,
 };
 DEFINE_FLAG_ENUM_OPERATORS(SHADING_RATE_CAP_FLAGS);
@@ -2681,14 +2680,11 @@ struct SparseMemoryProperties
     /// The total amount of address space available, in bytes, for a single resource.
     Uint64 ResourceSpaceSize DEFAULT_INITIALIZER(0);
     
-    /// Size of standard block.
+    /// Size of sparse memory block in bytes.
     Uint32 SparseBlockSize DEFAULT_INITIALIZER(0);
     
-    /// AZ TODO
+    /// Allowed bind flags for sparse buffer.
     BIND_FLAGS BufferBindFlags  DEFAULT_INITIALIZER(BIND_NONE);
-    
-    /// AZ TODO
-    //BIND_FLAGS TextureBindFlags DEFAULT_INITIALIZER(BIND_NONE);
 };
 typedef struct SparseMemoryProperties SparseMemoryProperties;
 

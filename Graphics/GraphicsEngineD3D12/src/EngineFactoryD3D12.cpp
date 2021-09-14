@@ -557,7 +557,6 @@ void EngineFactoryD3D12Impl::AttachToD3D12Device(void*                        pd
         {
             const auto d3d12CmdListType = ppCommandQueues[CtxInd]->GetD3D12CommandQueueDesc().Type;
             const auto QueueId          = D3D12CommandListTypeToQueueId(d3d12CmdListType);
-            const auto QueueType        = D3D12CommandListTypeToCmdQueueType(d3d12CmdListType);
 
             RefCntAutoPtr<DeviceContextD3D12Impl> pImmediateCtxD3D12{
                 NEW_RC_OBJ(RawMemAllocator, "DeviceContextD3D12Impl instance", DeviceContextD3D12Impl)(
@@ -565,7 +564,7 @@ void EngineFactoryD3D12Impl::AttachToD3D12Device(void*                        pd
                     EngineCI,
                     DeviceContextDesc{
                         pImmediateContextInfo[CtxInd].Name,
-                        QueueType,
+                        pRenderDeviceD3D12->GetAdapterInfo().Queues[QueueId].QueueType,
                         false,   // IsDeferred
                         CtxInd,  // Context index
                         QueueId} //
@@ -815,6 +814,15 @@ GraphicsAdapterInfo EngineFactoryD3D12Impl::GetGraphicsAdapterInfo(void*        
                     {
                         SparseMem.CapFlags |= SPARSE_MEMORY_CAP_FLAG_TEXTURE_3D | SPARSE_MEMORY_CAP_FLAG_RESIDENCY_TEXTURE_3D;
                     }
+
+                    SparseMem.BufferBindFlags =
+                        BIND_VERTEX_BUFFER |
+                        BIND_INDEX_BUFFER |
+                        BIND_UNIFORM_BUFFER |
+                        BIND_SHADER_RESOURCE |
+                        BIND_UNORDERED_ACCESS |
+                        BIND_INDIRECT_DRAW_ARGS |
+                        BIND_RAY_TRACING;
 
                     for (Uint32 q = 0; q < AdapterInfo.NumQueues; ++q)
                         AdapterInfo.Queues[q].QueueType |= COMMAND_QUEUE_TYPE_SPARSE_BINDING;

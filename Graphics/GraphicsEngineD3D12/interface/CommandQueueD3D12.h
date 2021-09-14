@@ -48,7 +48,7 @@ static const INTERFACE_ID IID_CommandQueueD3D12 =
 // clang-format off
 
 /// AZ TODO
-struct ResourceTileMappings
+struct ResourceTileMappingsD3D12
 {
     ID3D12Resource*                        pResource                       DEFAULT_INITIALIZER(nullptr);
     UINT                                   NumResourceRegions              DEFAULT_INITIALIZER(0);
@@ -61,7 +61,7 @@ struct ResourceTileMappings
     const UINT*                            pRangeTileCounts                DEFAULT_INITIALIZER(nullptr);
     D3D12_TILE_MAPPING_FLAGS               Flags                           DEFAULT_INITIALIZER(D3D12_TILE_MAPPING_FLAG_NONE);
 };
-typedef struct ResourceTileMappings ResourceTileMappings;
+typedef struct ResourceTileMappingsD3D12 ResourceTileMappingsD3D12;
 
 /// Command queue interface
 DILIGENT_BEGIN_INTERFACE(ICommandQueueD3D12, ICommandQueue)
@@ -92,8 +92,8 @@ DILIGENT_BEGIN_INTERFACE(ICommandQueueD3D12, ICommandQueue)
     
     /// Updates mappings of tile locations in reserved resources to memory locations in a resource heap.
     VIRTUAL void METHOD(UpdateTileMappings)(THIS_
-                                            ResourceTileMappings* pMappings,
-                                            Uint32                Count) PURE;
+                                            ResourceTileMappingsD3D12* pMappings,
+                                            Uint32                     Count) PURE;
 
     /// Returns the Direct3D12 command queue description
     VIRTUAL const D3D12_COMMAND_QUEUE_DESC REF METHOD(GetD3D12CommandQueueDesc)(THIS) CONST PURE;

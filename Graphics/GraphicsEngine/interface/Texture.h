@@ -90,7 +90,7 @@ struct TextureDesc DILIGENT_DERIVE(DeviceObjectAttribs)
     /// Miscellaneous flags, see Diligent::MISC_TEXTURE_FLAGS for details.
     MISC_TEXTURE_FLAGS MiscFlags        DEFAULT_INITIALIZER(MISC_TEXTURE_FLAG_NONE);
     
-    /// AZ TODO
+    /// Texture sparse flags, see Diligent::SPARSE_RESOURCE_FLAGS
     SPARSE_RESOURCE_FLAGS SparseFlags   DEFAULT_INITIALIZER(SPARSE_RESOURCE_FLAG_NONE);
 
     /// Optimized clear value
@@ -133,8 +133,8 @@ struct TextureDesc DILIGENT_DERIVE(DeviceObjectAttribs)
         Format               {_Format          },
         MipLevels            {_MipLevels       },
         SampleCount          {_SampleCount     },
-        Usage                {_Usage           },
         BindFlags            {_BindFlags       },
+        Usage                {_Usage           },
         CPUAccessFlags       {_CPUAccessFlags  },
         MiscFlags            {_MiscFlags       },
         ClearValue           {_ClearValue      },
@@ -284,22 +284,60 @@ struct MappedTextureSubresource
 };
 typedef struct MappedTextureSubresource MappedTextureSubresource;
 
-/// AZ TODO
-struct TextureSparseParameters
+/// Describes sparse texture packing mode
+DILIGENT_TYPED_ENUM(SPARSE_TEXTURE_FLAGS, Uint8)
 {
+    SPARSE_TEXTURE_FLAG_NONE                   = 0,
+
+    // AZ TODO: if MipTailStride == 0 then used single mip tail, so this flag is not needed, remove ?
+    /// Specifies that the texture uses a single mip tail region for all array layers
+    SPARSE_TEXTURE_FLAG_SINGLE_MIPTAIL         = 1u << 0,
+        
+    // AZ TODO: not needed because of FirstMipInTail, remove ?
+    /// Specifies that the first mip level whose dimensions are not integer
+    /// multiples of the corresponding dimensions of the sparse texture block begins the mip tail region.
+    SPARSE_TEXTURE_FLAG_ALIGNED_MIP_SIZE       = 1u << 1,
+
+    // AZ TODO: not needed because of TileSize, remove ?
+    /// Specifies that the texture uses non-standard sparse texture block dimensions,
+    /// and the TileSize values do not match the standard sparse texture block dimensions.
+    SPARSE_TEXTURE_FLAG_NONSTANDARD_BLOCK_SIZE = 1u << 2,
+
+    SPARSE_TEXTURE_FLAG_LAST                   = SPARSE_TEXTURE_FLAG_NONSTANDARD_BLOCK_SIZE
+};
+DEFINE_FLAG_ENUM_OPERATORS(SPARSE_TEXTURE_FLAGS);
+
+/// Describes the sparse texture properties
+struct TextureSparseProperties
+{
+    /// Texture address space size.
     Uint64  MemorySize      DEFAULT_INITIALIZER(0);
 
+    /// Specifies where to bind mip tail memory.
+    /// Reserved for internal use.
     Uint64  MipTailOffset   DEFAULT_INITIALIZER(0);
+
+    /// Specifies how to calculate mip tail offset for 2D array texture.
+    /// Reserved for internal use.
+    Uint64  MipTailStride   DEFAULT_INITIALIZER(0);
+
+    /// Specifies the mip tail size in bytes.
     Uint32  MipTailSize     DEFAULT_INITIALIZER(0);
-    Uint32  MipTailStride   DEFAULT_INITIALIZER(0);
+
+    /// This mip level with a subsequent mips packed into a single memory block.
     Uint32  FirstMipInTail  DEFAULT_INITIALIZER(0);
 
+    /// Specifies a tile dimension for a single sparse block, see SparseMemoryProperties::SparseBlockSize.
     Uint32  TileSize[3]     DEFAULT_INITIALIZER({});
+
+    /// Required alignment for memory offset in sparse memory binding command,
+    /// see SparseTextureMemoryBindRange::MemoryOffset.
     Uint32  MemoryAlignment DEFAULT_INITIALIZER(0);
 
-    // AZ TODO: flags
+    /// Flags which describes additional packing modes.
+    SPARSE_TEXTURE_FLAGS Flags DEFAULT_INITIALIZER(SPARSE_TEXTURE_FLAG_NONE);
 };
-typedef struct TextureSparseParameters TextureSparseParameters;
+typedef struct TextureSparseProperties TextureSparseProperties;
 
 #define DILIGENT_INTERFACE_NAME ITexture
 #include "../../../Primitives/interface/DefineInterfaceHelperMacros.h"
@@ -369,9 +407,9 @@ DILIGENT_BEGIN_INTERFACE(ITexture, IDeviceObject)
 
     /// Returns the internal texture state
     VIRTUAL RESOURCE_STATE METHOD(GetState)(THIS) CONST PURE;
-
-    /// AZ TODO
-    VIRTUAL TextureSparseParameters METHOD(GetSparseProperties)(THIS) CONST PURE;
+    
+    /// Returns the texture sparse memory properties
+    VIRTUAL const TextureSparseProperties REF METHOD(GetSparseProperties)(THIS) CONST PURE;
 };
 DILIGENT_END_INTERFACE
 

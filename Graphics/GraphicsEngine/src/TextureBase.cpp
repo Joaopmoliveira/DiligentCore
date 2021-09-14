@@ -31,6 +31,7 @@
 
 #include "DeviceContext.h"
 #include "GraphicsAccessories.hpp"
+#include "Align.hpp"
 
 namespace Diligent
 {
@@ -249,7 +250,7 @@ void ValidateTextureDesc(const TextureDesc& Desc, const IRenderDevice* pDevice) 
             VERIFY_TEXTURE(SparseProps.CapFlags & SPARSE_MEMORY_CAP_FLAG_RESIDENCY_ALIASED,
                            "combination of SPARSE_RESOURCE_FLAG_ALIASED and SPARSE_RESOURCE_FLAG_RESIDENT flags requires SPARSE_MEMORY_CAP_FLAG_RESIDENCY_ALIASED capability");
 
-        static_assert(RESOURCE_DIM_NUM_DIMENSIONS == 9, "AZ TODO");
+        static_assert(RESOURCE_DIM_NUM_DIMENSIONS == 9, "Please update the switch below to handle the new resource dimension type");
         switch (Desc.Type)
         {
             case RESOURCE_DIM_TEX_2D:
@@ -676,6 +677,111 @@ void ValidatedAndCorrectTextureViewDesc(const TextureDesc& TexDesc, TextureViewD
                                      "There might be an issue in OpenGL driver on NVidia hardware: when rendering to SNORM textures, all negative values are clamped to zero.\n"
                                      "Use UNORM format instead.");
     }
+}
+
+TextureSparseProperties GetTextureSparsePropertiesForStandardBlocks(const TextureDesc& TexDesc)
+{
+    constexpr Uint32 SparseBlockSize = 64 << 10;
+    const auto&      FmtAttribs      = GetTextureFormatAttribs(TexDesc.Format);
+    const Uint32     BytesPerBlock   = FmtAttribs.GetElementSize();
+    VERIFY_EXPR(IsPowerOfTwo(BytesPerBlock));
+    VERIFY_EXPR(BytesPerBlock >= 1 && BytesPerBlock <= 16);
+
+    TextureSparseProperties Props{};
+
+    if (TexDesc.Type == RESOURCE_DIM_TEX_3D)
+    {
+        //  | Texel size  |   Block shape   |
+        //  |-------------|-----------------|
+        //  |     8-Bit   |   64 x 32 x 32  |
+        //  |    16-Bit   |   32 x 32 x 32  |
+        //  |    32-Bit   |   32 x 32 x 16  |
+        //  |    64-Bit   |   32 x 16 x 16  |
+        //  |   128-Bit   |   16 x 16 x 16  |
+        Props.TileSize[0] = BytesPerBlock >= 16 ? 16 : (BytesPerBlock > 1 ? 32 : 64);
+        Props.TileSize[1] = BytesPerBlock >= 8 ? 16 : 32;
+        Props.TileSize[2] = BytesPerBlock >= 4 ? 16 : 32;
+    }
+    else if (TexDesc.SampleCount > 1)
+    {
+        //  | Texel size  |  Block shape 2x  |  Block shape 4x  |  Block shape 8x  |  Block shape 16x  |
+        //  |-------------|------------------|------------------|------------------|-------------------|
+        //  |     8-Bit   |   128 x 256 x 1  |   128 x 128 x 1  |   64 x 128 x 1   |    64 x 64 x 1    |
+        //  |    16-Bit   |   128 x 128 x 1  |   128 x  64 x 1  |   64 x  64 x 1   |    64 x 32 x 1    |
+        //  |    32-Bit   |    64 x 128 x 1  |    64 x  64 x 1  |   32 x  64 x 1   |    32 x 32 x 1    |
+        //  |    64-Bit   |    64 x  64 x 1  |    64 x  32 x 1  |   32 x  32 x 1   |    32 x 16 x 1    |
+        //  |   128-Bit   |    32 x  64 x 1  |    32 x  32 x 1  |   16 x  32 x 1   |    16 x 16 x 1    |
+        VERIFY_EXPR(IsPowerOfTwo(TexDesc.SampleCount));
+        Props.TileSize[0] = 128;
+        Props.TileSize[1] = 256;
+        Props.TileSize[2] = 1;
+        for (Uint32 i = 0, BPB = BytesPerBlock * TexDesc.SampleCount / 2; (1u << i) < BPB; ++i)
+        {
+            Props.TileSize[1 - (i & 1)] /= 2;
+        }
+    }
+    else
+    {
+        //  | Texel size  |   Block shape   |
+        //  |-------------|-----------------|
+        //  |     8-Bit   |  256 x 256 x 1  |
+        //  |    16-Bit   |  256 x 128 x 1  |
+        //  |    32-Bit   |  128 x 128 x 1  |
+        //  |    64-Bit   |  128 x  64 x 1  |
+        //  |   128-Bit   |   64 x  64 x 1  |
+        Props.TileSize[0] = 256;
+        Props.TileSize[1] = 256;
+        Props.TileSize[2] = 1;
+        for (Uint32 i = 0; (1u << i) < BytesPerBlock; ++i)
+        {
+            Props.TileSize[1 - (i & 1)] /= 2;
+        }
+    }
+
+    const auto BytesPerTile =
+        (Props.TileSize[0] / FmtAttribs.BlockWidth) *
+        (Props.TileSize[1] / FmtAttribs.BlockHeight) *
+        Props.TileSize[2] * TexDesc.SampleCount * BytesPerBlock;
+    VERIFY_EXPR(BytesPerTile == SparseBlockSize);
+
+    const auto TexDepth  = TexDesc.Type == RESOURCE_DIM_TEX_3D ? TexDesc.Depth : 1u;
+    const auto ArraySize = TexDesc.Type == RESOURCE_DIM_TEX_3D ? 1u : TexDesc.ArraySize;
+
+    Uint64 SliceSize = 0;
+    bool   IsMipTail = false;
+    for (Uint32 Mip = 0; Mip < TexDesc.MipLevels; ++Mip)
+    {
+        const auto Width  = std::max(1u, TexDesc.Width >> Mip);
+        const auto Height = std::max(1u, TexDesc.Height >> Mip);
+        const auto Depth  = std::max(1u, TexDepth >> Mip);
+
+        if (!IsMipTail && Width < Props.TileSize[0] && Height < Props.TileSize[1] && (Depth == 1 || Depth < Props.TileSize[2]))
+        {
+            Props.FirstMipInTail = Mip;
+            Props.MipTailOffset  = SliceSize;
+            IsMipTail            = true;
+        }
+
+        if (IsMipTail)
+        {
+            Props.MipTailSize += Width * Height * Depth * BytesPerBlock;
+        }
+        else
+        {
+            const auto XTiles = (Width + Props.TileSize[0] - 1) / Props.TileSize[0];
+            const auto YTiles = (Height + Props.TileSize[1] - 1) / Props.TileSize[1];
+            const auto ZTiles = (Depth + Props.TileSize[2] - 1) / Props.TileSize[2];
+            SliceSize += (XTiles * YTiles * ZTiles) * SparseBlockSize;
+        }
+    }
+
+    Props.MipTailSize     = AlignUp(Props.MipTailSize, SparseBlockSize);
+    Props.MipTailStride   = SliceSize + Props.MipTailSize;
+    Props.MemorySize      = Props.MipTailStride * ArraySize;
+    Props.MemoryAlignment = SparseBlockSize;
+    Props.Flags           = SPARSE_TEXTURE_FLAG_NONE;
+
+    return Props;
 }
 
 } // namespace Diligent

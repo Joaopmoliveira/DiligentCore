@@ -38,7 +38,7 @@ namespace Diligent
 DeviceMemoryVkImpl::DeviceMemoryVkImpl(IReferenceCounters*           pRefCounters,
                                        RenderDeviceVkImpl*           pDeviceVk,
                                        const DeviceMemoryCreateInfo& MemCI) :
-    TDeviceMemoryBase{pRefCounters, pDeviceVk, MemCI.Desc}
+    TDeviceMemoryBase{pRefCounters, pDeviceVk, MemCI}
 {
 #define DEVMEM_CHECK_CREATE_INFO(...) \
     LOG_ERROR_AND_THROW("Device memory create info is not valid: ", __VA_ARGS__);
@@ -89,6 +89,18 @@ DeviceMemoryVkImpl::DeviceMemoryVkImpl(IReferenceCounters*           pRefCounter
         DEVMEM_CHECK_CREATE_INFO("Failed to find memory type for resources in ppCompatibleResources");
 
     m_MemoryTypeIndex = MemoryTypeIndex;
+
+    VkMemoryAllocateInfo MemAlloc{};
+    MemAlloc.pNext           = nullptr;
+    MemAlloc.sType           = VK_STRUCTURE_TYPE_MEMORY_ALLOCATE_INFO;
+    MemAlloc.allocationSize  = m_Desc.PageSize;
+    MemAlloc.memoryTypeIndex = m_MemoryTypeIndex;
+
+    const auto PageCount = StaticCast<size_t>(MemCI.InitialSize / m_Desc.PageSize);
+    m_Pages.reserve(PageCount);
+
+    for (size_t i = 0; i < PageCount; ++i)
+        m_Pages.emplace_back(LogicalDevice.AllocateDeviceMemory(MemAlloc, m_Desc.Name)); // throw on error
 }
 
 DeviceMemoryVkImpl::~DeviceMemoryVkImpl()
@@ -116,7 +128,7 @@ Bool DeviceMemoryVkImpl::Resize(Uint64 NewSize)
     {
         try
         {
-            m_Pages.emplace_back(LogicalDevice.AllocateDeviceMemory(MemAlloc, nullptr));
+            m_Pages.emplace_back(LogicalDevice.AllocateDeviceMemory(MemAlloc, m_Desc.Name)); // throw on error
         }
         catch (...)
         {

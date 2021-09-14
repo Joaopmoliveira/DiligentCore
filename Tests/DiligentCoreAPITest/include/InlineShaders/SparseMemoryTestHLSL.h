@@ -43,12 +43,32 @@ cbuffer CB
     uint padding;
 };
 
-[numthreads(16, 1, 1)]
+[numthreads(64, 1, 1)]
 void main(uint DTid : SV_DispatchThreadID)
 {
     if (DTid < Size)
     {
         g_DstBuffer[Offset + DTid] = Pattern;
+    }
+}
+)hlsl"};
+
+const std::string FillTexture_CS{R"hlsl(
+RWTexture2D<float4> g_DstTexture : register(u0);
+
+cbuffer CB
+{
+    uint2  Offset;
+    uint2  Size;
+    float4 Color;
+};
+
+[numthreads(8, 8, 1)]
+void main(uint2 DTid : SV_DispatchThreadID)
+{
+    if (all(DTid < Size))
+    {
+        g_DstTexture[Offset + DTid] = Color;
     }
 }
 )hlsl"};
@@ -80,8 +100,11 @@ StructuredBuffer<uint> g_Buffer;
 
 float4 main(in PSInput PSIn) : SV_Target
 {
+    uint Count, Stride;
+    g_Buffer.GetDimensions(Count, Stride);
+
     uint Idx         = uint(PSIn.Pos.x) + uint(PSIn.Pos.y) * SCREEN_WIDTH;
-    uint PackedColor = g_Buffer[Idx];
+    uint PackedColor = Idx < Count ? g_Buffer[Idx] : 0;
 
     float4 Color;
     Color.r = (PackedColor & 0xFF) / 255.0;
@@ -92,6 +115,63 @@ float4 main(in PSInput PSIn) : SV_Target
     return Color;
 }
 )hlsl"};
+
+
+const std::string SparseTexture_PS{R"hlsl(
+struct PSInput 
+{ 
+    float4 Pos : SV_POSITION;
+};
+
+Texture2D<float4> g_Texture;
+
+float4 main(in PSInput PSIn) : SV_Target
+{
+    int3 Coord     = int3(PSIn.Pos.x, PSIn.Pos.y, 0);
+    int  MipHeight = SCREEN_HEIGHT / 2;
+
+    while (Coord.y > MipHeight && MipHeight > 1)
+    {
+        Coord.y   -= MipHeight;
+        Coord.z   += 1;
+        MipHeight >>= 1;
+    }
+
+    return g_Texture.Load(Coord);
+}
+)hlsl"};
+
+
+const std::string SparseTextureResidency_PS{R"hlsl(
+struct PSInput 
+{ 
+    float4 Pos : SV_POSITION;
+};
+
+Texture2D<float4> g_Texture;
+
+float4 main(in PSInput PSIn) : SV_Target
+{
+    int3 Coord     = int3(PSIn.Pos.x, PSIn.Pos.y, 0);
+    int  MipHeight = SCREEN_HEIGHT / 2;
+
+    while (Coord.y > MipHeight && MipHeight > 1)
+    {
+        Coord.y   -= MipHeight;
+        Coord.z   += 1;
+        MipHeight >>= 1;
+    }
+
+    uint Status;
+    float4 Color = g_Texture.Load(Coord, /*offset*/int2(0,0), Status);
+
+    if (!CheckAccessFullyMapped(Status))
+        return float4(1.0, 0.0, 1.0, 1.0);
+
+    return Color;
+}
+)hlsl"};
+
 
 } // namespace HLSL
 

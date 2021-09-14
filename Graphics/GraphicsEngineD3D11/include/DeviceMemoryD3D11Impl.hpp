@@ -60,8 +60,8 @@ public:
     /// Implementation of IDeviceMemory::IsCompatible().
     virtual Bool DILIGENT_CALL_TYPE IsCompatible(IDeviceObject* pResource) const override final;
 
-    /// Implementation of IDeviceMemoryD3D11::GetD3D11Buffer().
-    virtual ID3D11Buffer* DILIGENT_CALL_TYPE GetD3D11Buffer() override final
+    /// Implementation of IDeviceMemoryD3D11::GetD3D11TilePool().
+    virtual ID3D11Buffer* DILIGENT_CALL_TYPE GetD3D11TilePool() override final
     {
         return m_pd3d11Buffer;
     }

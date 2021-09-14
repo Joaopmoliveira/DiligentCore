@@ -315,7 +315,7 @@ void EngineFactoryD3D11Impl::AttachToD3D11Device(void*                        pd
                 RawAlloctor, pRenderDeviceD3D11, pd3d11ImmediateCtx1, EngineCI,
                 DeviceContextDesc{
                     EngineCI.pImmediateContextInfo ? EngineCI.pImmediateContextInfo[0].Name : nullptr,
-                    COMMAND_QUEUE_TYPE_GRAPHICS,
+                    pRenderDeviceD3D11->GetAdapterInfo().Queues[0].QueueType,
                     False, // IsDefered
                     0,     // Context id
                     0      // Queue id

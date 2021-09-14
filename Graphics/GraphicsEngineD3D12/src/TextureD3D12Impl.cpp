@@ -158,41 +158,55 @@ TextureD3D12Impl::TextureD3D12Impl(IReferenceCounters*        pRefCounters,
         GetSupportedD3D12ResourceStatesForCommandList(pRenderDeviceD3D12->GetCommandQueueType(CmdQueueInd)) :
         static_cast<D3D12_RESOURCE_STATES>(~0u);
 
+    D3D12_CLEAR_VALUE  ClearValue  = {};
+    D3D12_CLEAR_VALUE* pClearValue = nullptr;
+    if (d3d12TexDesc.Flags & (D3D12_RESOURCE_FLAG_ALLOW_RENDER_TARGET | D3D12_RESOURCE_FLAG_ALLOW_DEPTH_STENCIL))
+    {
+        if (m_Desc.ClearValue.Format != TEX_FORMAT_UNKNOWN)
+            ClearValue.Format = TexFormatToDXGI_Format(m_Desc.ClearValue.Format);
+        else
+        {
+            auto Format       = TexFormatToDXGI_Format(m_Desc.Format, m_Desc.BindFlags);
+            ClearValue.Format = GetClearFormat(Format, d3d12TexDesc.Flags);
+        }
+
+        if (d3d12TexDesc.Flags & D3D12_RESOURCE_FLAG_ALLOW_RENDER_TARGET)
+        {
+            for (int i = 0; i < 4; ++i)
+                ClearValue.Color[i] = m_Desc.ClearValue.Color[i];
+        }
+        else if (d3d12TexDesc.Flags & D3D12_RESOURCE_FLAG_ALLOW_DEPTH_STENCIL)
+        {
+            ClearValue.DepthStencil.Depth   = m_Desc.ClearValue.DepthStencil.Depth;
+            ClearValue.DepthStencil.Stencil = m_Desc.ClearValue.DepthStencil.Stencil;
+        }
+        pClearValue = &ClearValue;
+    }
+
     auto* pd3d12Device = pRenderDeviceD3D12->GetD3D12Device();
     if (m_Desc.Usage == USAGE_SPARSE)
     {
         // In Direct3D12 sparse resources is always resident and aliased
         m_Desc.SparseFlags |= SPARSE_RESOURCE_FLAG_RESIDENT | SPARSE_RESOURCE_FLAG_ALIASED;
+
+        d3d12TexDesc.Layout = D3D12_TEXTURE_LAYOUT_64KB_UNDEFINED_SWIZZLE;
+
+        auto hr = pd3d12Device->CreateReservedResource(&d3d12TexDesc, D3D12_RESOURCE_STATE_COMMON, pClearValue, __uuidof(m_pd3d12Resource),
+                                                       reinterpret_cast<void**>(static_cast<ID3D12Resource**>(&m_pd3d12Resource)));
+        if (FAILED(hr))
+            LOG_ERROR_AND_THROW("Failed to create D3D12 texture");
+
+        if (*m_Desc.Name != 0)
+            m_pd3d12Resource->SetName(WidenString(m_Desc.Name).c_str());
+
+        SetState(RESOURCE_STATE_UNDEFINED);
+
+        InitSparseProperties();
     }
     else if (m_Desc.Usage == USAGE_IMMUTABLE || m_Desc.Usage == USAGE_DEFAULT || m_Desc.Usage == USAGE_DYNAMIC)
     {
         VERIFY(m_Desc.Usage != USAGE_DYNAMIC || PlatformMisc::CountOneBits(m_Desc.ImmediateContextMask) <= 1,
                "ImmediateContextMask must contain single set bit, this error should've been handled in ValidateTextureDesc()");
-
-        D3D12_CLEAR_VALUE  ClearValue  = {};
-        D3D12_CLEAR_VALUE* pClearValue = nullptr;
-        if (d3d12TexDesc.Flags & (D3D12_RESOURCE_FLAG_ALLOW_RENDER_TARGET | D3D12_RESOURCE_FLAG_ALLOW_DEPTH_STENCIL))
-        {
-            if (m_Desc.ClearValue.Format != TEX_FORMAT_UNKNOWN)
-                ClearValue.Format = TexFormatToDXGI_Format(m_Desc.ClearValue.Format);
-            else
-            {
-                auto Format       = TexFormatToDXGI_Format(m_Desc.Format, m_Desc.BindFlags);
-                ClearValue.Format = GetClearFormat(Format, d3d12TexDesc.Flags);
-            }
-
-            if (d3d12TexDesc.Flags & D3D12_RESOURCE_FLAG_ALLOW_RENDER_TARGET)
-            {
-                for (int i = 0; i < 4; ++i)
-                    ClearValue.Color[i] = m_Desc.ClearValue.Color[i];
-            }
-            else if (d3d12TexDesc.Flags & D3D12_RESOURCE_FLAG_ALLOW_DEPTH_STENCIL)
-            {
-                ClearValue.DepthStencil.Depth   = m_Desc.ClearValue.DepthStencil.Depth;
-                ClearValue.DepthStencil.Stencil = m_Desc.ClearValue.DepthStencil.Stencil;
-            }
-            pClearValue = &ClearValue;
-        }
 
         D3D12_HEAP_PROPERTIES HeapProps{};
         HeapProps.Type                 = D3D12_HEAP_TYPE_DEFAULT;
@@ -636,10 +650,41 @@ D3D12_RESOURCE_STATES TextureD3D12Impl::GetD3D12ResourceState() const
     return ResourceStateFlagsToD3D12ResourceStates(GetState());
 }
 
-TextureSparseParameters TextureD3D12Impl::GetSparseProperties() const
+void TextureD3D12Impl::InitSparseProperties()
 {
-    // AZ TODO
-    return {};
+    VERIFY_EXPR(m_Desc.Usage == USAGE_SPARSE);
+    VERIFY_EXPR(m_pSparseProps == nullptr);
+
+    m_pSparseProps = ALLOCATE(m_pDevice->GetTexSparsePropsAllocator(), "TextureSparseProperties", TextureSparseProperties, 1);
+
+    auto* pd3d12Device = m_pDevice->GetD3D12Device();
+
+    UINT                  NumTilesForEntireResource = 0;
+    D3D12_PACKED_MIP_INFO PackedMipDesc;
+    D3D12_TILE_SHAPE      StandardTileShapeForNonPackedMips;
+    UINT                  NumSubresourceTilings = 0;
+    pd3d12Device->GetResourceTiling(GetD3D12Resource(),
+                                    &NumTilesForEntireResource,
+                                    &PackedMipDesc,
+                                    &StandardTileShapeForNonPackedMips,
+                                    &NumSubresourceTilings,
+                                    0,
+                                    nullptr);
+
+    auto& Props           = *m_pSparseProps;
+    Props.MemorySize      = NumTilesForEntireResource * D3D12_TILED_RESOURCE_TILE_SIZE_IN_BYTES;
+    Props.MemoryAlignment = D3D12_TILED_RESOURCE_TILE_SIZE_IN_BYTES;
+    Props.MipTailOffset   = PackedMipDesc.StartTileIndexInOverallResource * D3D12_TILED_RESOURCE_TILE_SIZE_IN_BYTES;
+    Props.MipTailStride   = (Uint32{PackedMipDesc.NumPackedMips} + PackedMipDesc.NumStandardMips) * D3D12_TILED_RESOURCE_TILE_SIZE_IN_BYTES;
+    Props.MipTailSize     = PackedMipDesc.NumTilesForPackedMips * D3D12_TILED_RESOURCE_TILE_SIZE_IN_BYTES;
+    Props.FirstMipInTail  = PackedMipDesc.NumStandardMips;
+    Props.TileSize[0]     = StandardTileShapeForNonPackedMips.WidthInTexels;
+    Props.TileSize[1]     = StandardTileShapeForNonPackedMips.HeightInTexels;
+    Props.TileSize[2]     = StandardTileShapeForNonPackedMips.DepthInTexels;
+    Props.Flags           = SPARSE_TEXTURE_FLAG_NONE;
+
+    if (m_Desc.Type != RESOURCE_DIM_TEX_3D && m_Desc.ArraySize > 1)
+        VERIFY_EXPR(Props.MipTailStride * m_Desc.ArraySize == Props.MemorySize);
 }
 
 } // namespace Diligent

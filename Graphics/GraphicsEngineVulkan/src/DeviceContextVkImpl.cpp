@@ -3710,30 +3710,66 @@ void DeviceContextVkImpl::BindSparseMemory(const BindSparseMemoryAttribs& Attrib
 {
     TDeviceContextBase::BindSparseMemory(Attribs, 0);
 
-    if (Attribs.NumBufferBinds == 0 && Attribs.NumTextureBinds == 0 && Attribs.NumTextureOpaqueBinds == 0)
+    if (Attribs.NumBufferBinds == 0 && Attribs.NumTextureBinds == 0)
         return;
 
     Flush();
 
-    Uint32 MemoryBindCount = 0;
+    // Calculated required size of the arrays
+    Uint32 NumImageBind         = 0;
+    Uint32 NumImageOpaqueBind   = 0;
+    Uint32 MemoryBindCount      = 0;
+    Uint32 ImageMemoryBindCount = 0;
+
     for (Uint32 i = 0; i < Attribs.NumBufferBinds; ++i)
         MemoryBindCount += Attribs.pBufferBinds[i].NumRanges;
 
-    for (Uint32 i = 0; i < Attribs.NumTextureOpaqueBinds; ++i)
-        MemoryBindCount += Attribs.pTextureOpaqueBinds[i].NumRanges;
-
-    Uint32 ImageMemoryBindCount = 0;
     for (Uint32 i = 0; i < Attribs.NumTextureBinds; ++i)
-        ImageMemoryBindCount += Attribs.pTextureBinds[i].NumRanges;
+    {
+        const auto& Bind           = Attribs.pTextureBinds[i];
+        auto*       pTexVk         = ClassPtrCast<TextureVkImpl>(Bind.pTexture);
+        const auto& TexSparseProps = pTexVk->GetSparseProperties();
+        bool        ImageBindAdded = false;
+
+        if (pTexVk->GetDesc().SparseFlags & SPARSE_RESOURCE_FLAG_RESIDENT)
+        {
+            for (Uint32 j = 0, Count = Bind.NumRanges; j < Count; ++j)
+            {
+                if (Bind.pRanges[j].MipLevel >= TexSparseProps.FirstMipInTail)
+                {
+                    ++MemoryBindCount;
+                    ++NumImageOpaqueBind;
+                }
+                else
+                {
+                    if (!ImageBindAdded)
+                    {
+                        ++NumImageBind;
+                        ImageBindAdded = true;
+                    }
+                    ++ImageMemoryBindCount;
+                }
+            }
+        }
+        else
+        {
+            NumImageOpaqueBind += 1;
+            MemoryBindCount += Bind.NumRanges;
+        }
+    }
 
     std::vector<VkSparseBufferMemoryBindInfo>      BufferBind{Attribs.NumBufferBinds};
-    std::vector<VkSparseImageOpaqueMemoryBindInfo> ImageOpaqueBind{Attribs.NumTextureOpaqueBinds};
-    std::vector<VkSparseImageMemoryBindInfo>       ImageBind{Attribs.NumTextureBinds};
+    std::vector<VkSparseImageOpaqueMemoryBindInfo> ImageOpaqueBind{NumImageOpaqueBind};
+    std::vector<VkSparseImageMemoryBindInfo>       ImageBind{NumImageBind};
     std::vector<VkSparseMemoryBind>                MemoryBind{MemoryBindCount};
     std::vector<VkSparseImageMemoryBind>           ImageMemoryBind{ImageMemoryBindCount};
 
+    const auto& SparseProps = m_pDevice->GetAdapterInfo().SparseMemory;
+
     MemoryBindCount      = 0;
     ImageMemoryBindCount = 0;
+    NumImageBind         = 0;
+    NumImageOpaqueBind   = 0;
 
     for (Uint32 i = 0; i < Attribs.NumBufferBinds; ++i)
     {
@@ -3741,7 +3777,7 @@ void DeviceContextVkImpl::BindSparseMemory(const BindSparseMemoryAttribs& Attrib
         auto&       Dst     = BufferBind[i];
         auto*       pBuffVk = ClassPtrCast<BufferVkImpl>(Src.pBuffer);
 #ifdef DILIGENT_DEVELOPMENT
-        const auto BuffProps = pBuffVk->GetSparseProperties();
+        const auto& BuffSparseProps = pBuffVk->GetSparseProperties();
 #endif
 
         Dst.buffer    = pBuffVk->GetVkBuffer();
@@ -3753,42 +3789,15 @@ void DeviceContextVkImpl::BindSparseMemory(const BindSparseMemoryAttribs& Attrib
             const auto& SrcRange   = Src.pRanges[r];
             auto&       DstRange   = MemoryBind[MemoryBindCount + r];
             auto*       pMemVk     = ClassPtrCast<IDeviceMemoryVk>(SrcRange.pMemory);
-            const auto  MemRangeVk = pMemVk->GetRange(SrcRange.MemoryOffset, SrcRange.MemorySize);
-            VERIFY_EXPR(MemRangeVk.Size == SrcRange.MemorySize);
+            const auto  MemRangeVk = pMemVk ? pMemVk->GetRange(SrcRange.MemoryOffset, SrcRange.MemorySize) : DeviceMemoryRangeVk{};
 
-            DEV_CHECK_ERR(MemRangeVk.Offset % BuffProps.MemoryAlignment == 0,
-                          "");
-
-            DstRange.memory         = MemRangeVk.Handle;
-            DstRange.memoryOffset   = MemRangeVk.Offset;
-            DstRange.size           = MemRangeVk.Size;
-            DstRange.resourceOffset = SrcRange.ResourceOffset;
-            DstRange.flags          = 0;
-        }
-        MemoryBindCount += Src.NumRanges;
-    }
-
-    for (Uint32 i = 0; i < Attribs.NumTextureOpaqueBinds; ++i)
-    {
-        const auto& Src = Attribs.pTextureOpaqueBinds[i];
-        auto&       Dst = ImageOpaqueBind[i];
-
-        Dst.image     = ClassPtrCast<TextureVkImpl>(Src.pTexture)->GetVkImage();
-        Dst.bindCount = Src.NumRanges;
-        Dst.pBinds    = &MemoryBind[MemoryBindCount];
-
-        for (Uint32 r = 0; r < Src.NumRanges; ++r)
-        {
-            const auto& SrcRange   = Src.pRanges[r];
-            auto&       DstRange   = MemoryBind[MemoryBindCount + r];
-            auto*       pMemVk     = ClassPtrCast<IDeviceMemoryVk>(SrcRange.pMemory);
-            const auto  MemRangeVk = pMemVk->GetRange(SrcRange.MemoryOffset, SrcRange.MemorySize);
-            VERIFY_EXPR(MemRangeVk.Size == SrcRange.MemorySize);
+            DEV_CHECK_ERR(MemRangeVk.Offset % BuffSparseProps.MemoryAlignment == 0,
+                          "MemoryOffset must be multiple of the BufferSparseProperties::MemoryAlignment");
 
             DstRange.memory         = MemRangeVk.Handle;
             DstRange.memoryOffset   = MemRangeVk.Offset;
             DstRange.size           = MemRangeVk.Size;
-            DstRange.resourceOffset = SrcRange.ResourceOffset;
+            DstRange.resourceOffset = SrcRange.BufferOffset;
             DstRange.flags          = 0;
         }
         MemoryBindCount += Src.NumRanges;
@@ -3796,50 +3805,132 @@ void DeviceContextVkImpl::BindSparseMemory(const BindSparseMemoryAttribs& Attrib
 
     for (Uint32 i = 0; i < Attribs.NumTextureBinds; ++i)
     {
-        const auto& Src    = Attribs.pTextureBinds[i];
-        auto&       Dst    = ImageBind[i];
-        auto*       pTexVk = ClassPtrCast<TextureVkImpl>(Src.pTexture);
+        const auto& Src            = Attribs.pTextureBinds[i];
+        auto*       pTexVk         = ClassPtrCast<TextureVkImpl>(Src.pTexture);
+        const auto& TexDesc        = pTexVk->GetDesc();
+        const auto& TexSparseProps = pTexVk->GetSparseProperties();
 
-        Dst.image     = pTexVk->GetVkImage();
-        Dst.bindCount = Src.NumRanges;
-        Dst.pBinds    = &ImageMemoryBind[ImageMemoryBindCount];
-
-        const auto&        FmtAttribs = GetTextureFormatAttribs(pTexVk->GetDesc().Format);
-        VkImageAspectFlags aspectMask = 0;
-
-        if (FmtAttribs.ComponentType == COMPONENT_TYPE_DEPTH)
-            aspectMask = VK_IMAGE_ASPECT_DEPTH_BIT;
-        else if (FmtAttribs.ComponentType == COMPONENT_TYPE_DEPTH_STENCIL)
-            aspectMask = VK_IMAGE_ASPECT_DEPTH_BIT | VK_IMAGE_ASPECT_STENCIL_BIT;
-        else
-            aspectMask = VK_IMAGE_ASPECT_COLOR_BIT;
-
-        for (Uint32 r = 0; r < Src.NumRanges; ++r)
+        // Vulkan supports image binding with texel coordinates only on resident textures
+        if (TexDesc.SparseFlags & SPARSE_RESOURCE_FLAG_RESIDENT)
         {
-            const auto& SrcRange   = Src.pRanges[r];
-            auto&       DstRange   = ImageMemoryBind[ImageMemoryBindCount + r];
-            auto*       pMemVk     = ClassPtrCast<IDeviceMemoryVk>(SrcRange.pMemory);
-            const auto  MemRangeVk = pMemVk->GetRange(SrcRange.MemoryOffset, SrcRange.MemorySize);
-            VERIFY_EXPR(MemRangeVk.Size == SrcRange.MemorySize);
+            const auto         OldImageMemoryBindCount = ImageMemoryBindCount;
+            const auto&        FmtAttribs              = GetTextureFormatAttribs(pTexVk->GetDesc().Format);
+            VkImageAspectFlags aspectMask              = 0;
 
-            DstRange.subresource.arrayLayer = SrcRange.ArraySlice;
-            DstRange.subresource.aspectMask = aspectMask;
-            DstRange.subresource.mipLevel   = SrcRange.MipLevel;
-            DstRange.offset.x               = static_cast<int32_t>(SrcRange.Region.MinX);
-            DstRange.offset.y               = static_cast<int32_t>(SrcRange.Region.MinY);
-            DstRange.offset.z               = static_cast<int32_t>(SrcRange.Region.MinZ);
-            DstRange.extent.width           = static_cast<int32_t>(SrcRange.Region.MaxX);
-            DstRange.extent.height          = static_cast<int32_t>(SrcRange.Region.MaxY);
-            DstRange.extent.depth           = static_cast<int32_t>(SrcRange.Region.MaxZ);
-            DstRange.memory                 = MemRangeVk.Handle;
-            DstRange.memoryOffset           = MemRangeVk.Offset;
-            DstRange.flags                  = 0;
+            if (FmtAttribs.ComponentType == COMPONENT_TYPE_DEPTH)
+                aspectMask = VK_IMAGE_ASPECT_DEPTH_BIT;
+            else if (FmtAttribs.ComponentType == COMPONENT_TYPE_DEPTH_STENCIL)
+                aspectMask = VK_IMAGE_ASPECT_DEPTH_BIT | VK_IMAGE_ASPECT_STENCIL_BIT;
+            else
+                aspectMask = VK_IMAGE_ASPECT_COLOR_BIT;
+
+            for (Uint32 r = 0; r < Src.NumRanges; ++r)
+            {
+                const auto& SrcRange   = Src.pRanges[r];
+                auto*       pMemVk     = ClassPtrCast<IDeviceMemoryVk>(SrcRange.pMemory);
+                const auto  MemRangeVk = pMemVk ? pMemVk->GetRange(SrcRange.MemoryOffset, SrcRange.MemorySize) : DeviceMemoryRangeVk{};
+
+                DEV_CHECK_ERR(MemRangeVk.Offset % TexSparseProps.MemoryAlignment == 0,
+                              "MemoryOffset must be multiple of the TextureSparseProperties::MemoryAlignment");
+
+                if (SrcRange.MipLevel < TexSparseProps.FirstMipInTail)
+                {
+                    auto& DstRange = ImageMemoryBind[ImageMemoryBindCount];
+                    ++ImageMemoryBindCount;
+
+                    DstRange.subresource.arrayLayer = SrcRange.ArraySlice;
+                    DstRange.subresource.aspectMask = aspectMask;
+                    DstRange.subresource.mipLevel   = SrcRange.MipLevel;
+                    DstRange.offset.x               = static_cast<int32_t>(SrcRange.Region.MinX);
+                    DstRange.offset.y               = static_cast<int32_t>(SrcRange.Region.MinY);
+                    DstRange.offset.z               = static_cast<int32_t>(SrcRange.Region.MinZ);
+                    DstRange.extent.width           = static_cast<int32_t>(SrcRange.Region.Width());
+                    DstRange.extent.height          = static_cast<int32_t>(SrcRange.Region.Height());
+                    DstRange.extent.depth           = static_cast<int32_t>(SrcRange.Region.Depth());
+                    DstRange.memory                 = MemRangeVk.Handle;
+                    DstRange.memoryOffset           = MemRangeVk.Offset;
+                    DstRange.flags                  = 0;
+                }
+                else
+                {
+                    // Bind mip tail memory
+                    auto& Dst     = ImageOpaqueBind[NumImageOpaqueBind++];
+                    Dst.image     = pTexVk->GetVkImage();
+                    Dst.bindCount = 1;
+                    Dst.pBinds    = &MemoryBind[MemoryBindCount];
+
+                    auto& DstRange = MemoryBind[MemoryBindCount];
+                    ++MemoryBindCount;
+
+                    DstRange.memory         = MemRangeVk.Handle;
+                    DstRange.memoryOffset   = MemRangeVk.Offset;
+                    DstRange.size           = MemRangeVk.Size;
+                    DstRange.resourceOffset = TexSparseProps.MipTailOffset;
+                    DstRange.flags          = 0;
+                }
+            }
+
+            if (OldImageMemoryBindCount != ImageMemoryBindCount)
+            {
+                auto& Dst     = ImageBind[NumImageBind++];
+                Dst.image     = pTexVk->GetVkImage();
+                Dst.bindCount = ImageMemoryBindCount - OldImageMemoryBindCount;
+                Dst.pBinds    = &ImageMemoryBind[OldImageMemoryBindCount];
+            }
         }
-        ImageMemoryBindCount += Src.NumRanges;
+        else
+        {
+            auto& Dst     = ImageOpaqueBind[NumImageOpaqueBind++];
+            Dst.image     = pTexVk->GetVkImage();
+            Dst.bindCount = Src.NumRanges;
+            Dst.pBinds    = &MemoryBind[MemoryBindCount];
+
+            for (Uint32 r = 0; r < Src.NumRanges; ++r)
+            {
+                const auto& SrcRange   = Src.pRanges[r];
+                auto&       DstRange   = MemoryBind[MemoryBindCount + r];
+                auto*       pMemVk     = ClassPtrCast<IDeviceMemoryVk>(SrcRange.pMemory);
+                const auto  MemRangeVk = pMemVk ? pMemVk->GetRange(SrcRange.MemoryOffset, SrcRange.MemorySize) : DeviceMemoryRangeVk{};
+
+                DEV_CHECK_ERR(MemRangeVk.Offset % TexSparseProps.MemoryAlignment == 0,
+                              "MemoryOffset must be multiple of the TextureSparseProperties::MemoryAlignment");
+
+                DstRange.memory         = MemRangeVk.Handle;
+                DstRange.memoryOffset   = MemRangeVk.Offset;
+                DstRange.size           = MemRangeVk.Size;
+                DstRange.resourceOffset = 0;
+                DstRange.flags          = 0;
+
+                if (SrcRange.MipLevel < TexSparseProps.FirstMipInTail)
+                {
+                    for (Uint32 Mip = 0; Mip < SrcRange.MipLevel; ++Mip)
+                    {
+                        const uint3 TilesInMip = GetNumTilesInMipLevel(TexDesc, TexSparseProps, Mip);
+                        DstRange.resourceOffset += TilesInMip.x * TilesInMip.y * TilesInMip.z * SparseProps.SparseBlockSize;
+                    }
+
+                    const uint3 TilesInMip = GetNumTilesInMipLevel(TexDesc, TexSparseProps, SrcRange.MipLevel);
+                    DstRange.resourceOffset += (SrcRange.Region.MinX / TexSparseProps.TileSize[0]) * SparseProps.SparseBlockSize;
+                    DstRange.resourceOffset += (SrcRange.Region.MinY / TexSparseProps.TileSize[1]) * TilesInMip.x * SparseProps.SparseBlockSize;
+                    DstRange.resourceOffset += (SrcRange.Region.MinZ / TexSparseProps.TileSize[2]) * TilesInMip.y * SparseProps.SparseBlockSize;
+
+                    VERIFY_EXPR(DstRange.resourceOffset < TexSparseProps.MipTailOffset);
+                }
+                else
+                {
+                    // Mip tail
+                    VERIFY_EXPR(DstRange.size == TexSparseProps.MipTailSize);
+                    DstRange.resourceOffset = TexSparseProps.MipTailOffset;
+                }
+            }
+            MemoryBindCount += Src.NumRanges;
+        }
     }
 
     VERIFY_EXPR(MemoryBindCount == MemoryBind.size());
     VERIFY_EXPR(ImageMemoryBindCount == ImageMemoryBind.size());
+    VERIFY_EXPR(NumImageBind == ImageBind.size());
+    VERIFY_EXPR(NumImageOpaqueBind == ImageOpaqueBind.size());
 
     VkBindSparseInfo BindSparse{};
     BindSparse.sType                = VK_STRUCTURE_TYPE_BIND_SPARSE_INFO;

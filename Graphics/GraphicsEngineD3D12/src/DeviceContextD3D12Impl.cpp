@@ -2995,7 +2995,7 @@ struct TileMappingKeyHash
 struct TileMapping
 {
     std::vector<D3D12_TILED_RESOURCE_COORDINATE> Coordinates;
-    std::vector<D3D12_TILE_REGION_SIZE>          RegionSize;
+    std::vector<D3D12_TILE_REGION_SIZE>          RegionSizes;
 
     std::vector<D3D12_TILE_RANGE_FLAGS> RangeFlags;
     std::vector<UINT>                   HeapRangeStartOffsets;
@@ -3006,7 +3006,7 @@ void DeviceContextD3D12Impl::BindSparseMemory(const BindSparseMemoryAttribs& Att
 {
     TDeviceContextBase::BindSparseMemory(Attribs, 0);
 
-    if (Attribs.NumBufferBinds == 0 && Attribs.NumTextureBinds == 0 && Attribs.NumTextureOpaqueBinds == 0)
+    if (Attribs.NumBufferBinds == 0 && Attribs.NumTextureBinds == 0)
         return;
 
     Flush();
@@ -3024,28 +3024,37 @@ void DeviceContextD3D12Impl::BindSparseMemory(const BindSparseMemoryAttribs& Att
             const auto  MemRange = ClassPtrCast<DeviceMemoryD3D12Impl>(SrcRange.pMemory)->GetRange(SrcRange.MemoryOffset, SrcRange.MemorySize);
             VERIFY_EXPR(MemRange.Size == SrcRange.MemorySize);
 
+            DEV_CHECK_ERR(MemRange.Offset % D3D12_TILED_RESOURCE_TILE_SIZE_IN_BYTES == 0,
+                          "MemoryOffset must be multiple of sparse block size");
+
             auto& Dst = TileMappingMap[TileMappingKey{pBuffD3D12, MemRange.pHandle}];
 
-            //auto& Coord = Dst.Coordinates.emplace_back();
-            //Coord.X     = StaticCast<UINT>(SrcRange.ResourceOffset);
+            Dst.Coordinates.emplace_back();
+            auto& Coord = Dst.Coordinates.back();
+            Coord.X     = StaticCast<UINT>(SrcRange.BufferOffset / D3D12_TILED_RESOURCE_TILE_SIZE_IN_BYTES);
 
-            //auto& Size = Dst.RegionSize.emplace_back();
-            //Size.Width = SrcRange.MemorySize;
+            Dst.RegionSizes.emplace_back();
+            auto& Size    = Dst.RegionSizes.back();
+            Size.Width    = SrcRange.MemorySize / D3D12_TILED_RESOURCE_TILE_SIZE_IN_BYTES;
+            Size.Height   = 1;
+            Size.Depth    = 1;
+            Size.UseBox   = FALSE;
+            Size.NumTiles = Size.Width;
 
             // If pRangeFlags[i] is D3D12_TILE_RANGE_FLAG_NONE, that range defines sequential tiles in the heap,
             // with the number of tiles being pRangeTileCounts[i] and the starting location pHeapRangeStartOffsets[i]
-            Dst.RangeFlags.emplace_back(D3D12_TILE_RANGE_FLAG_NONE);
-            Dst.HeapRangeStartOffsets.emplace_back(SrcRange.MemoryOffset);
-            Dst.RangeTileCounts.emplace_back();
+            Dst.RangeFlags.emplace_back(SrcRange.pMemory ? D3D12_TILE_RANGE_FLAG_NONE : D3D12_TILE_RANGE_FLAG_NULL);
+            Dst.HeapRangeStartOffsets.emplace_back(static_cast<UINT>(MemRange.Offset / D3D12_TILED_RESOURCE_TILE_SIZE_IN_BYTES));
+            Dst.RangeTileCounts.emplace_back(SrcRange.MemorySize / D3D12_TILED_RESOURCE_TILE_SIZE_IN_BYTES);
         }
     }
 
     for (Uint32 i = 0; i < Attribs.NumTextureBinds; ++i)
     {
-        const auto& Src       = Attribs.pTextureBinds[i];
-        //auto*       pTexD3D12 = ClassPtrCast<TextureD3D12Impl>(Src.pTexture);
-        //auto*       pResD3D12 = pTexD3D12->GetD3D12Resource();
-        //const auto& Desc      = pTexD3D12->GetDesc();
+        const auto& Src            = Attribs.pTextureBinds[i];
+        auto*       pTexD3D12      = ClassPtrCast<TextureD3D12Impl>(Src.pTexture);
+        const auto& TexSparseProps = pTexD3D12->GetSparseProperties();
+        const auto& TexDesc        = pTexD3D12->GetDesc();
 
         for (Uint32 r = 0; r < Src.NumRanges; ++r)
         {
@@ -3053,35 +3062,69 @@ void DeviceContextD3D12Impl::BindSparseMemory(const BindSparseMemoryAttribs& Att
             const auto  MemRange = ClassPtrCast<DeviceMemoryD3D12Impl>(SrcRange.pMemory)->GetRange(SrcRange.MemoryOffset, SrcRange.MemorySize);
             VERIFY_EXPR(MemRange.Size == SrcRange.MemorySize);
 
-            //auto& Dst = TileMappingMap[TileMappingKey{pResD3D12, MemRange.pHandle}];
+            auto& Dst = TileMappingMap[TileMappingKey{pTexD3D12->GetD3D12Resource(), MemRange.pHandle}];
 
-            //auto& Coord = Dst.Coordinates.emplace_back();
-            //Coord.X     = SrcRange.Region.MinX;
-            //Coord.Y     = SrcRange.Region.MinY;
-            //Coord.Z     = SrcRange.Region.MinZ;
+            Dst.Coordinates.emplace_back();
+            auto& Coord = Dst.Coordinates.back();
+            Coord.X     = SrcRange.Region.MinX / TexSparseProps.TileSize[0];
+            Coord.Y     = SrcRange.Region.MinY / TexSparseProps.TileSize[1];
+            Coord.Z     = SrcRange.Region.MinZ / TexSparseProps.TileSize[2];
 
-            //if (Desc.Type == RESOURCE_DIM_TEX_3D)
-            //    Coord.Subresource = D3D12CalcSubresource(SrcRange.MipLevel, 0, 0, Desc.MipLevels, 1);
-            //else
-            //    Coord.Subresource = D3D12CalcSubresource(SrcRange.MipLevel, SrcRange.ArraySlice, 0, Desc.MipLevels, Desc.ArraySize);
+            if (TexDesc.Type == RESOURCE_DIM_TEX_3D)
+                Coord.Subresource = D3D12CalcSubresource(SrcRange.MipLevel, 0, 0, TexDesc.MipLevels, 1);
+            else
+                Coord.Subresource = D3D12CalcSubresource(SrcRange.MipLevel, SrcRange.ArraySlice, 0, TexDesc.MipLevels, TexDesc.ArraySize);
 
-            //auto& Size    = Dst.RegionSize.emplace_back();
-            //Size.Width    = SrcRange.Region.MaxX - SrcRange.Region.MinX;
-            //Size.Height   = StaticCast<UINT16>(SrcRange.Region.MaxY - SrcRange.Region.MinY);
-            //Size.Depth    = StaticCast<UINT16>(SrcRange.Region.MaxZ - SrcRange.Region.MaxZ);
-            //Size.NumTiles = Size.Width * Size.Height * Size.Depth;
-            //Size.UseBox   = FALSE;
+            Dst.RegionSizes.emplace_back();
+            auto& Size    = Dst.RegionSizes.back();
+            Size.Width    = (SrcRange.Region.Width() + TexSparseProps.TileSize[0] - 1) / TexSparseProps.TileSize[0];
+            Size.Height   = static_cast<UINT16>((SrcRange.Region.Height() + TexSparseProps.TileSize[1] - 1) / TexSparseProps.TileSize[1]);
+            Size.Depth    = static_cast<UINT16>((SrcRange.Region.Depth() + TexSparseProps.TileSize[2] - 1) / TexSparseProps.TileSize[2]);
+            Size.UseBox   = FALSE;
+            Size.NumTiles = Size.Width * Size.Height * Size.Depth;
+
+            Dst.RangeFlags.emplace_back(SrcRange.pMemory ? D3D12_TILE_RANGE_FLAG_NONE : D3D12_TILE_RANGE_FLAG_NULL);
+            Dst.HeapRangeStartOffsets.emplace_back(static_cast<UINT>(MemRange.Offset / D3D12_TILED_RESOURCE_TILE_SIZE_IN_BYTES));
+            Dst.RangeTileCounts.emplace_back(SrcRange.MemorySize / D3D12_TILED_RESOURCE_TILE_SIZE_IN_BYTES);
         }
     }
 
-    // not supported and sould be removed
-    VERIFY_EXPR(Attribs.NumTextureOpaqueBinds == 0);
+    auto* pQueueD3D12 = LockCommandQueue();
 
-    //auto* pQueueD3D12 = LockCommandQueue();
+    for (Uint32 i = 0; i < Attribs.NumWaitFences; ++i)
+    {
+        auto* pFenceD3D12 = ClassPtrCast<FenceD3D12Impl>(Attribs.ppWaitFences[i]);
+        auto  Value       = Attribs.pWaitFenceValues[i];
+        pQueueD3D12->WaitFence(pFenceD3D12->GetD3D12Fence(), Value);
+        pFenceD3D12->DvpDeviceWait(Value);
+    }
 
-    //pQueueD3D12->UpdateTileMappings(Mappings.data(), MappingCount);
+    for (const auto& Src : TileMappingMap)
+    {
+        ResourceTileMappingsD3D12 Dst{};
+        Dst.pResource                       = Src.first.pResource;
+        Dst.NumResourceRegions              = static_cast<UINT>(Src.second.Coordinates.size());
+        Dst.pResourceRegionStartCoordinates = Src.second.Coordinates.data();
+        Dst.pResourceRegionSizes            = Src.second.RegionSizes.data();
+        Dst.pHeap                           = Src.first.pHeap;
+        Dst.NumRanges                       = static_cast<UINT>(Src.second.RangeFlags.size());
+        Dst.pRangeFlags                     = Src.second.RangeFlags.data();
+        Dst.pHeapRangeStartOffsets          = Src.second.HeapRangeStartOffsets.data();
+        Dst.pRangeTileCounts                = Src.second.RangeTileCounts.data();
+        Dst.Flags                           = D3D12_TILE_MAPPING_FLAG_NONE;
 
-    //UnlockCommandQueue();
+        pQueueD3D12->UpdateTileMappings(&Dst, 1);
+    }
+
+    for (Uint32 i = 0; i < Attribs.NumSignalFences; ++i)
+    {
+        auto* pFenceD3D12 = ClassPtrCast<FenceD3D12Impl>(Attribs.ppSignalFences[i]);
+        auto  Value       = Attribs.pSignalFenceValues[i];
+        pQueueD3D12->EnqueueSignal(pFenceD3D12->GetD3D12Fence(), Value);
+        pFenceD3D12->DvpSignal(Value);
+    }
+
+    UnlockCommandQueue();
 }
 
 } // namespace Diligent

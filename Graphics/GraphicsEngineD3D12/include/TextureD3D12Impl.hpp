@@ -75,9 +75,6 @@ public:
     /// Implementation of ITextureD3D12::GetD3D12ResourceState().
     virtual D3D12_RESOURCE_STATES DILIGENT_CALL_TYPE GetD3D12ResourceState() const override final;
 
-    /// Implementation of ITexture::GetSparseProperties().
-    virtual TextureSparseParameters DILIGENT_CALL_TYPE GetSparseProperties() const override final;
-
     D3D12_RESOURCE_DESC GetD3D12TextureDesc() const;
 
     const D3D12_PLACED_SUBRESOURCE_FOOTPRINT& GetStagingFootprint(Uint32 Subresource)
@@ -95,6 +92,8 @@ protected:
     void CreateRTV(const TextureViewDesc& RTVDesc, D3D12_CPU_DESCRIPTOR_HANDLE RTVHandle);
     void CreateDSV(const TextureViewDesc& DSVDesc, D3D12_CPU_DESCRIPTOR_HANDLE DSVHandle);
     void CreateUAV(const TextureViewDesc& UAVDesc, D3D12_CPU_DESCRIPTOR_HANDLE UAVHandle);
+
+    void InitSparseProperties();
 
     D3D12_PLACED_SUBRESOURCE_FOOTPRINT* m_StagingFootprints = nullptr;
 };

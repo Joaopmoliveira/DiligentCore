@@ -79,8 +79,8 @@ public:
     }
 
     // Implementation of ICommandQueueD3D12::UpdateTileMappings().
-    virtual void DILIGENT_CALL_TYPE UpdateTileMappings(ResourceTileMappings* pMappings,
-                                                       Uint32                Count) override final;
+    virtual void DILIGENT_CALL_TYPE UpdateTileMappings(ResourceTileMappingsD3D12* pMappings,
+                                                       Uint32                     Count) override final;
 
 private:
     // A value that will be signaled by the command queue next

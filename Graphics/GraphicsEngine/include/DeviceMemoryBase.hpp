@@ -55,14 +55,17 @@ public:
 
     using TDeviceObjectBase = DeviceObjectBase<BaseInterface, RenderDeviceImplType, DeviceMemoryDesc>;
 
-    /// \param pRefCounters         - Reference counters object that controls the lifetime of this device memory object.
-    /// \param pDevice              - Pointer to the device.
-    /// \param Desc                 - Device memory description.
-    DeviceMemoryBase(IReferenceCounters*     pRefCounters,
-                     RenderDeviceImplType*   pDevice,
-                     const DeviceMemoryDesc& Desc) :
-        TDeviceObjectBase{pRefCounters, pDevice, Desc, false}
+    /// \param pRefCounters  - Reference counters object that controls the lifetime of this device memory object.
+    /// \param pDevice       - Pointer to the device.
+    /// \param MemCI         - Device memory create info.
+    DeviceMemoryBase(IReferenceCounters*           pRefCounters,
+                     RenderDeviceImplType*         pDevice,
+                     const DeviceMemoryCreateInfo& MemCI) :
+        TDeviceObjectBase{pRefCounters, pDevice, MemCI.Desc, false}
     {
+        if (MemCI.InitialSize == 0)
+            LOG_ERROR_AND_THROW("DeviceMemoryCreateInfo::InitialSize must not be zero");
+
         ValidateDeviceMemoryDesc(this->m_Desc, pDevice);
 
         Uint64 DeviceQueuesMask = pDevice->GetCommandQueueMask();
