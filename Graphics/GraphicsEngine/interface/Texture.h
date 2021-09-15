@@ -168,6 +168,28 @@ struct TextureDesc DILIGENT_DERIVE(DeviceObjectAttribs)
                 ClearValue           == RHS.ClearValue     &&
                 ImmediateContextMask == RHS.ImmediateContextMask;
     }
+
+    constexpr bool IsArray() const
+    {
+        return Type == RESOURCE_DIM_TEX_1D_ARRAY ||
+               Type == RESOURCE_DIM_TEX_2D_ARRAY ||
+               Type == RESOURCE_DIM_TEX_CUBE     ||
+               Type == RESOURCE_DIM_TEX_CUBE_ARRAY;
+    }
+    
+    constexpr bool Is1D() const
+    {
+        return Type == RESOURCE_DIM_TEX_1D      ||
+               Type == RESOURCE_DIM_TEX_1D_ARRAY;
+    }
+
+    constexpr bool Is2D() const
+    {
+        return Type == RESOURCE_DIM_TEX_2D       ||
+               Type == RESOURCE_DIM_TEX_2D_ARRAY ||
+               Type == RESOURCE_DIM_TEX_CUBE     ||
+               Type == RESOURCE_DIM_TEX_CUBE_ARRAY;
+    }
 #endif
 };
 typedef struct TextureDesc TextureDesc;

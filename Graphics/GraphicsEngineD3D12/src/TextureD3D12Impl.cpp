@@ -85,16 +85,16 @@ D3D12_RESOURCE_DESC TextureD3D12Impl::GetD3D12TextureDesc() const
     D3D12_RESOURCE_DESC Desc = {};
 
     Desc.Alignment = 0;
-    if (m_Desc.Type == RESOURCE_DIM_TEX_1D_ARRAY || m_Desc.Type == RESOURCE_DIM_TEX_2D_ARRAY || m_Desc.Type == RESOURCE_DIM_TEX_CUBE || m_Desc.Type == RESOURCE_DIM_TEX_CUBE_ARRAY)
+    if (m_Desc.IsArray())
         Desc.DepthOrArraySize = (UINT16)m_Desc.ArraySize;
     else if (m_Desc.Type == RESOURCE_DIM_TEX_3D)
         Desc.DepthOrArraySize = (UINT16)m_Desc.Depth;
     else
         Desc.DepthOrArraySize = 1;
 
-    if (m_Desc.Type == RESOURCE_DIM_TEX_1D || m_Desc.Type == RESOURCE_DIM_TEX_1D_ARRAY)
+    if (m_Desc.Is1D())
         Desc.Dimension = D3D12_RESOURCE_DIMENSION_TEXTURE1D;
-    else if (m_Desc.Type == RESOURCE_DIM_TEX_2D || m_Desc.Type == RESOURCE_DIM_TEX_2D_ARRAY || m_Desc.Type == RESOURCE_DIM_TEX_CUBE || m_Desc.Type == RESOURCE_DIM_TEX_CUBE_ARRAY)
+    else if (m_Desc.Is2D())
         Desc.Dimension = D3D12_RESOURCE_DIMENSION_TEXTURE2D;
     else if (m_Desc.Type == RESOURCE_DIM_TEX_3D)
         Desc.Dimension = D3D12_RESOURCE_DIMENSION_TEXTURE3D;
@@ -489,6 +489,12 @@ void TextureD3D12Impl::CreateViewInternal(const struct TextureViewDesc& ViewDesc
 
         auto UpdatedViewDesc = ViewDesc;
         ValidatedAndCorrectTextureViewDesc(m_Desc, UpdatedViewDesc);
+
+        if (m_Desc.IsArray() && (ViewDesc.TextureDim == RESOURCE_DIM_TEX_1D || ViewDesc.TextureDim == RESOURCE_DIM_TEX_2D))
+        {
+            if (ViewDesc.FirstArraySlice != 0)
+                LOG_ERROR_AND_THROW("FirstArraySlice must be 0, offset is not supported for non-array view in Direct3D12");
+        }
 
         DescriptorHeapAllocation ViewDescriptor;
         switch (ViewDesc.ViewType)

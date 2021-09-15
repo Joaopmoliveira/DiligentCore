@@ -69,7 +69,7 @@ TextureBaseD3D11::TextureBaseD3D11(IReferenceCounters*        pRefCounters,
 
 IMPLEMENT_QUERY_INTERFACE(TextureBaseD3D11, IID_TextureD3D11, TTextureBase)
 
-void TextureBaseD3D11::CreateViewInternal(const struct TextureViewDesc& ViewDesc, ITextureView** ppView, bool bIsDefaultView)
+void TextureBaseD3D11::CreateViewInternal(const TextureViewDesc& ViewDesc, ITextureView** ppView, bool bIsDefaultView)
 {
     VERIFY(ppView != nullptr, "View pointer address is null");
     if (!ppView) return;
@@ -81,6 +81,12 @@ void TextureBaseD3D11::CreateViewInternal(const struct TextureViewDesc& ViewDesc
     {
         auto UpdatedViewDesc = ViewDesc;
         ValidatedAndCorrectTextureViewDesc(m_Desc, UpdatedViewDesc);
+
+        if (m_Desc.IsArray() && (ViewDesc.TextureDim == RESOURCE_DIM_TEX_1D || ViewDesc.TextureDim == RESOURCE_DIM_TEX_2D))
+        {
+            if (ViewDesc.FirstArraySlice != 0)
+                LOG_ERROR_AND_THROW("FirstArraySlice must be 0, offset is not supported for non-array view in Direct3D11");
+        }
 
         RefCntAutoPtr<ID3D11View> pD3D11View;
         switch (ViewDesc.ViewType)

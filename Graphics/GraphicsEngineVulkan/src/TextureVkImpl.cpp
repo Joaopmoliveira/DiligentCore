@@ -85,9 +85,9 @@ TextureVkImpl::TextureVkImpl(IReferenceCounters*        pRefCounters,
             ImageCI.flags |= VK_IMAGE_CREATE_MUTABLE_FORMAT_BIT; // Specifies that the image can be used to create a
                                                                  // VkImageView with a different format from the image.
 
-        if (m_Desc.Type == RESOURCE_DIM_TEX_1D || m_Desc.Type == RESOURCE_DIM_TEX_1D_ARRAY)
+        if (m_Desc.Is1D())
             ImageCI.imageType = VK_IMAGE_TYPE_1D;
-        else if (m_Desc.Type == RESOURCE_DIM_TEX_2D || m_Desc.Type == RESOURCE_DIM_TEX_2D_ARRAY || m_Desc.Type == RESOURCE_DIM_TEX_CUBE || m_Desc.Type == RESOURCE_DIM_TEX_CUBE_ARRAY)
+        else if (m_Desc.Is2D())
             ImageCI.imageType = VK_IMAGE_TYPE_2D;
         else if (m_Desc.Type == RESOURCE_DIM_TEX_3D)
         {
@@ -122,10 +122,7 @@ TextureVkImpl::TextureVkImpl(IReferenceCounters*        pRefCounters,
         ImageCI.extent.depth  = (m_Desc.Type == RESOURCE_DIM_TEX_3D) ? m_Desc.Depth : 1;
 
         ImageCI.mipLevels = m_Desc.MipLevels;
-        if (m_Desc.Type == RESOURCE_DIM_TEX_1D_ARRAY ||
-            m_Desc.Type == RESOURCE_DIM_TEX_2D_ARRAY ||
-            m_Desc.Type == RESOURCE_DIM_TEX_CUBE ||
-            m_Desc.Type == RESOURCE_DIM_TEX_CUBE_ARRAY)
+        if (m_Desc.IsArray())
             ImageCI.arrayLayers = m_Desc.ArraySize;
         else
             ImageCI.arrayLayers = 1;
@@ -683,10 +680,7 @@ VulkanUtilities::ImageViewWrapper TextureVkImpl::CreateImageView(TextureViewDesc
 
     ImageViewCI.subresourceRange.baseMipLevel = ViewDesc.MostDetailedMip;
     ImageViewCI.subresourceRange.levelCount   = ViewDesc.NumMipLevels;
-    if (ViewDesc.TextureDim == RESOURCE_DIM_TEX_1D_ARRAY ||
-        ViewDesc.TextureDim == RESOURCE_DIM_TEX_2D_ARRAY ||
-        ViewDesc.TextureDim == RESOURCE_DIM_TEX_CUBE ||
-        ViewDesc.TextureDim == RESOURCE_DIM_TEX_CUBE_ARRAY)
+    if (m_Desc.IsArray())
     {
         ImageViewCI.subresourceRange.baseArrayLayer = ViewDesc.FirstArraySlice;
         ImageViewCI.subresourceRange.layerCount     = ViewDesc.NumArraySlices;

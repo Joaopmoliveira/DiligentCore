@@ -442,6 +442,10 @@ void TextureBaseGL::CreateViewInternal(const struct TextureViewDesc& OrigViewDes
                     default: UNEXPECTED("Unsupported texture view type");
                 }
 
+                // In OpenGL ES this function allowed as extension and may be not supported
+                if (glTextureView == nullptr)
+                    LOG_ERROR_AND_THROW("glTextureView is not supported");
+
                 glTextureView(pViewOGL->GetHandle(), GLViewTarget, m_GlTexture, GLViewFormat, ViewDesc.MostDetailedMip, ViewDesc.NumMipLevels, ViewDesc.FirstArraySlice, NumLayers);
                 CHECK_GL_ERROR_AND_THROW("Failed to create texture view");
                 pViewOGL->SetBindTarget(GLViewTarget);

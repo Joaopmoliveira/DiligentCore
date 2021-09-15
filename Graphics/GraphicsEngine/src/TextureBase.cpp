@@ -110,9 +110,9 @@ void ValidateTextureDesc(const TextureDesc& Desc, const IRenderDevice* pDevice) 
     }
 
     Uint32 MaxDim = 0;
-    if (Desc.Type == RESOURCE_DIM_TEX_1D || Desc.Type == RESOURCE_DIM_TEX_1D_ARRAY)
+    if (Desc.Is1D())
         MaxDim = Desc.Width;
-    else if (Desc.Type == RESOURCE_DIM_TEX_2D || Desc.Type == RESOURCE_DIM_TEX_2D_ARRAY || Desc.Type == RESOURCE_DIM_TEX_CUBE || Desc.Type == RESOURCE_DIM_TEX_CUBE_ARRAY)
+    else if (Desc.Is2D())
         MaxDim = std::max(Desc.Width, Desc.Height);
     else if (Desc.Type == RESOURCE_DIM_TEX_3D)
         MaxDim = std::max(std::max(Desc.Width, Desc.Height), Desc.Depth);
@@ -307,10 +307,7 @@ void ValidateTextureRegion(const TextureDesc& TexDesc, Uint32 MipLevel, Uint32 S
     VERIFY_TEX_PARAMS(Box.MinY < Box.MaxY, "Invalid Y range: ", Box.MinY, "..", Box.MaxY);
     VERIFY_TEX_PARAMS(Box.MinZ < Box.MaxZ, "Invalid Z range: ", Box.MinZ, "..", Box.MaxZ);
 
-    if (TexDesc.Type == RESOURCE_DIM_TEX_1D_ARRAY ||
-        TexDesc.Type == RESOURCE_DIM_TEX_2D_ARRAY ||
-        TexDesc.Type == RESOURCE_DIM_TEX_CUBE ||
-        TexDesc.Type == RESOURCE_DIM_TEX_CUBE_ARRAY)
+    if (TexDesc.IsArray())
     {
         VERIFY_TEX_PARAMS(Slice < TexDesc.ArraySize, "Array slice (", Slice, ") is out of range [0,", TexDesc.ArraySize - 1, "].");
     }
@@ -435,10 +432,7 @@ void ValidateMapTextureParams(const TextureDesc& TexDesc,
                               const Box*         pMapRegion)
 {
     VERIFY_TEX_PARAMS(MipLevel < TexDesc.MipLevels, "Mip level (", MipLevel, ") is out of allowed range [0, ", TexDesc.MipLevels - 1, "].");
-    if (TexDesc.Type == RESOURCE_DIM_TEX_1D_ARRAY ||
-        TexDesc.Type == RESOURCE_DIM_TEX_2D_ARRAY ||
-        TexDesc.Type == RESOURCE_DIM_TEX_CUBE ||
-        TexDesc.Type == RESOURCE_DIM_TEX_CUBE_ARRAY)
+    if (TexDesc.IsArray())
     {
         VERIFY_TEX_PARAMS(ArraySlice < TexDesc.ArraySize, "Array slice (", ArraySlice, ") is out of range [0,", TexDesc.ArraySize - 1, "].");
     }
@@ -468,6 +462,21 @@ void ValidatedAndCorrectTextureViewDesc(const TextureDesc& TexDesc, TextureViewD
 
     if (ViewDesc.Format == TEX_FORMAT_UNKNOWN)
         ViewDesc.Format = GetDefaultTextureViewFormat(TexDesc.Format, ViewDesc.ViewType, TexDesc.BindFlags);
+
+    if (TexDesc.IsArray())
+    {
+        if (ViewDesc.FirstArraySlice >= TexDesc.ArraySize)
+            TEX_VIEW_VALIDATION_ERROR("First array slice (", ViewDesc.FirstArraySlice, ") is out of range. The texture has only (", TexDesc.ArraySize, ") slices.");
+
+        if (ViewDesc.NumArraySlices != REMAINING_ARRAY_SLICES && ViewDesc.FirstArraySlice + ViewDesc.NumArraySlices > TexDesc.ArraySize)
+            TEX_VIEW_VALIDATION_ERROR("First array slice (", ViewDesc.FirstArraySlice, ") and number of array slices (", ViewDesc.NumArraySlices,
+                                      ") is out of range. The texture has only (", TexDesc.ArraySize, ") slices.");
+    }
+    else if (TexDesc.Type != RESOURCE_DIM_TEX_3D)
+    {
+        if (ViewDesc.FirstArraySlice != 0)
+            TEX_VIEW_VALIDATION_ERROR("For non-array texture FirstArraySlice must be 0");
+    }
 
     if (ViewDesc.TextureDim == RESOURCE_DIM_UNDEFINED)
     {
@@ -580,52 +589,42 @@ void ValidatedAndCorrectTextureViewDesc(const TextureDesc& TexDesc, TextureViewD
             break;
     }
 
-    if (ViewDesc.TextureDim == RESOURCE_DIM_TEX_CUBE)
+    switch (ViewDesc.TextureDim)
     {
-        if (ViewDesc.ViewType != TEXTURE_VIEW_SHADER_RESOURCE)
-            TEX_VIEW_VALIDATION_ERROR("Unexpected view type: SRV is expected.");
-        if (ViewDesc.NumArraySlices != 6 && ViewDesc.NumArraySlices != 0 && ViewDesc.NumArraySlices != REMAINING_ARRAY_SLICES)
-            TEX_VIEW_VALIDATION_ERROR("Texture cube SRV is expected to have 6 array slices, while ", ViewDesc.NumArraySlices, " is provided.");
-        if (ViewDesc.FirstArraySlice != 0)
-            TEX_VIEW_VALIDATION_ERROR("First slice (", ViewDesc.FirstArraySlice, ") must be 0 for non-array texture cube SRV.");
-    }
-    if (ViewDesc.TextureDim == RESOURCE_DIM_TEX_CUBE_ARRAY)
-    {
-        if (ViewDesc.ViewType != TEXTURE_VIEW_SHADER_RESOURCE)
-            TEX_VIEW_VALIDATION_ERROR("Unexpected view type: SRV is expected.");
-        if (ViewDesc.NumArraySlices != REMAINING_ARRAY_SLICES && (ViewDesc.NumArraySlices % 6) != 0)
-            TEX_VIEW_VALIDATION_ERROR("Number of slices in texture cube array SRV is expected to be multiple of 6. ", ViewDesc.NumArraySlices, " slices is provided.");
-    }
+        case RESOURCE_DIM_TEX_CUBE:
+            if (ViewDesc.ViewType != TEXTURE_VIEW_SHADER_RESOURCE)
+                TEX_VIEW_VALIDATION_ERROR("Unexpected view type: SRV is expected.");
+            if (ViewDesc.NumArraySlices != 6 && ViewDesc.NumArraySlices != 0 && ViewDesc.NumArraySlices != REMAINING_ARRAY_SLICES)
+                TEX_VIEW_VALIDATION_ERROR("Texture cube SRV is expected to have 6 array slices, while ", ViewDesc.NumArraySlices, " is provided.");
+            break;
 
-    if (ViewDesc.TextureDim == RESOURCE_DIM_TEX_1D ||
-        ViewDesc.TextureDim == RESOURCE_DIM_TEX_2D)
-    {
-        if (ViewDesc.FirstArraySlice != 0)
-            TEX_VIEW_VALIDATION_ERROR("First slice (", ViewDesc.FirstArraySlice, ") must be 0 for non-array texture 1D/2D views.");
+        case RESOURCE_DIM_TEX_CUBE_ARRAY:
+            if (ViewDesc.ViewType != TEXTURE_VIEW_SHADER_RESOURCE)
+                TEX_VIEW_VALIDATION_ERROR("Unexpected view type: SRV is expected.");
+            if (ViewDesc.NumArraySlices != REMAINING_ARRAY_SLICES && (ViewDesc.NumArraySlices % 6) != 0)
+                TEX_VIEW_VALIDATION_ERROR("Number of slices in texture cube array SRV is expected to be multiple of 6. ", ViewDesc.NumArraySlices, " slices is provided.");
+            break;
 
-        if (ViewDesc.NumArraySlices != REMAINING_ARRAY_SLICES && ViewDesc.NumArraySlices > 1)
-            TEX_VIEW_VALIDATION_ERROR("Number of slices in the view (", ViewDesc.NumArraySlices, ") must be 1 (or 0) for non-array texture 1D/2D views.");
-    }
-    else if (ViewDesc.TextureDim == RESOURCE_DIM_TEX_1D_ARRAY ||
-             ViewDesc.TextureDim == RESOURCE_DIM_TEX_2D_ARRAY ||
-             ViewDesc.TextureDim == RESOURCE_DIM_TEX_CUBE ||
-             ViewDesc.TextureDim == RESOURCE_DIM_TEX_CUBE_ARRAY)
-    {
-        if (ViewDesc.FirstArraySlice >= TexDesc.ArraySize)
-            TEX_VIEW_VALIDATION_ERROR("First array slice (", ViewDesc.FirstArraySlice, ") exceeds the number of slices in the texture array (", TexDesc.ArraySize, ").");
+        case RESOURCE_DIM_TEX_1D:
+        case RESOURCE_DIM_TEX_2D:
+            if (ViewDesc.NumArraySlices != REMAINING_ARRAY_SLICES && ViewDesc.NumArraySlices > 1)
+                TEX_VIEW_VALIDATION_ERROR("Number of slices in the view (", ViewDesc.NumArraySlices, ") must be 1 (or 0) for non-array texture 1D/2D views.");
+            break;
 
-        if (ViewDesc.NumArraySlices != REMAINING_ARRAY_SLICES && ViewDesc.FirstArraySlice + ViewDesc.NumArraySlices > TexDesc.ArraySize)
-            TEX_VIEW_VALIDATION_ERROR("First slice (", ViewDesc.FirstArraySlice, ") and number of slices in the view (", ViewDesc.NumArraySlices, ") specify more slices than target texture has (", TexDesc.ArraySize, ").");
-    }
-    else if (ViewDesc.TextureDim == RESOURCE_DIM_TEX_3D)
-    {
-        auto MipDepth = TexDesc.Depth >> ViewDesc.MostDetailedMip;
-        if (ViewDesc.FirstDepthSlice + ViewDesc.NumDepthSlices > MipDepth)
-            TEX_VIEW_VALIDATION_ERROR("First slice (", ViewDesc.FirstDepthSlice, ") and number of slices in the view (", ViewDesc.NumDepthSlices, ") specify more slices than target 3D texture mip level has (", MipDepth, ").");
-    }
-    else
-    {
-        UNEXPECTED("Unexpected texture dimension");
+        case RESOURCE_DIM_TEX_1D_ARRAY:
+        case RESOURCE_DIM_TEX_2D_ARRAY:
+            break;
+
+        case RESOURCE_DIM_TEX_3D:
+        {
+            auto MipDepth = std::max(TexDesc.Depth >> ViewDesc.MostDetailedMip, 1u);
+            if (ViewDesc.FirstDepthSlice + ViewDesc.NumDepthSlices > MipDepth)
+                TEX_VIEW_VALIDATION_ERROR("First slice (", ViewDesc.FirstDepthSlice, ") and number of slices in the view (", ViewDesc.NumDepthSlices, ") specify more slices than target 3D texture mip level has (", MipDepth, ").");
+            break;
+        }
+
+        default:
+            UNEXPECTED("Unexpected texture dimension");
     }
 
     if (GetTextureFormatAttribs(ViewDesc.Format).IsTypeless)
@@ -654,14 +653,11 @@ void ValidatedAndCorrectTextureViewDesc(const TextureDesc& TexDesc, TextureViewD
 
     if (ViewDesc.NumArraySlices == 0 || ViewDesc.NumArraySlices == REMAINING_ARRAY_SLICES)
     {
-        if (ViewDesc.TextureDim == RESOURCE_DIM_TEX_1D_ARRAY ||
-            ViewDesc.TextureDim == RESOURCE_DIM_TEX_2D_ARRAY ||
-            ViewDesc.TextureDim == RESOURCE_DIM_TEX_CUBE ||
-            ViewDesc.TextureDim == RESOURCE_DIM_TEX_CUBE_ARRAY)
+        if (TexDesc.IsArray())
             ViewDesc.NumArraySlices = TexDesc.ArraySize - ViewDesc.FirstArraySlice;
         else if (ViewDesc.TextureDim == RESOURCE_DIM_TEX_3D)
         {
-            auto MipDepth           = TexDesc.Depth >> ViewDesc.MostDetailedMip;
+            auto MipDepth           = std::max(TexDesc.Depth >> ViewDesc.MostDetailedMip, 1u);
             ViewDesc.NumDepthSlices = MipDepth - ViewDesc.FirstDepthSlice;
         }
         else

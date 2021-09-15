@@ -133,15 +133,11 @@ public:
         if (this->m_Desc.MipLevels == 0)
         {
             // Compute the number of levels in the full mipmap chain
-            if (this->m_Desc.Type == RESOURCE_DIM_TEX_1D ||
-                this->m_Desc.Type == RESOURCE_DIM_TEX_1D_ARRAY)
+            if (this->m_Desc.Is1D())
             {
                 this->m_Desc.MipLevels = ComputeMipLevelsCount(this->m_Desc.Width);
             }
-            else if (this->m_Desc.Type == RESOURCE_DIM_TEX_2D ||
-                     this->m_Desc.Type == RESOURCE_DIM_TEX_2D_ARRAY ||
-                     this->m_Desc.Type == RESOURCE_DIM_TEX_CUBE ||
-                     this->m_Desc.Type == RESOURCE_DIM_TEX_CUBE_ARRAY)
+            else if (this->m_Desc.Is2D())
             {
                 this->m_Desc.MipLevels = ComputeMipLevelsCount(this->m_Desc.Width, this->m_Desc.Height);
             }

@@ -948,7 +948,7 @@ String GetTextureDescString(const TextureDesc& Desc)
         Str += ToString(Desc.Depth);
     }
 
-    if (Desc.Type == RESOURCE_DIM_TEX_1D_ARRAY || Desc.Type == RESOURCE_DIM_TEX_2D_ARRAY || Desc.Type == RESOURCE_DIM_TEX_CUBE || Desc.Type == RESOURCE_DIM_TEX_CUBE_ARRAY)
+    if (Desc.IsArray())
     {
         Str += "; Num Slices: ";
         Str += ToString(Desc.ArraySize);
@@ -1691,10 +1691,7 @@ Uint64 GetStagingTextureLocationOffset(const TextureDesc& TexDesc,
         }
 
         Offset = ArraySliceSize;
-        if (TexDesc.Type == RESOURCE_DIM_TEX_1D_ARRAY ||
-            TexDesc.Type == RESOURCE_DIM_TEX_2D_ARRAY ||
-            TexDesc.Type == RESOURCE_DIM_TEX_CUBE ||
-            TexDesc.Type == RESOURCE_DIM_TEX_CUBE_ARRAY)
+        if (TexDesc.IsArray())
             Offset *= ArraySlice;
     }
 
