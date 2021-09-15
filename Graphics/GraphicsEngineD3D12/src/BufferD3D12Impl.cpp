@@ -119,7 +119,7 @@ BufferD3D12Impl::BufferD3D12Impl(IReferenceCounters*        pRefCounters,
         if (m_Desc.Usage == USAGE_SPARSE)
         {
             // In Direct3D12 sparse resources is always resident and aliased
-            m_Desc.SparseFlags |= SPARSE_RESOURCE_FLAG_RESIDENT | SPARSE_RESOURCE_FLAG_ALIASED;
+            m_Desc.SparseFlags |= SPARSE_RESOURCE_FLAG_ALIASED;
 
             auto hr = pd3d12Device->CreateReservedResource(&D3D12BuffDesc, D3D12_RESOURCE_STATE_COMMON, nullptr,
                                                            __uuidof(m_pd3d12Resource),

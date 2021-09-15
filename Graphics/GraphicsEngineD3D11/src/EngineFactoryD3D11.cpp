@@ -537,7 +537,7 @@ GraphicsAdapterInfo EngineFactoryD3D11Impl::GetGraphicsAdapterInfo(void*        
                 SparseMem.CapFlags =
                     SPARSE_MEMORY_CAP_FLAG_BUFFER |
                     SPARSE_MEMORY_CAP_FLAG_TEXTURE_2D |
-                    SPARSE_MEMORY_CAP_FLAG_RESIDENCY_STANDARD_2D_BLOCK_SHAPE |
+                    SPARSE_MEMORY_CAP_FLAG_STANDARD_2D_BLOCK_SHAPE |
                     SPARSE_MEMORY_CAP_FLAG_ALIASED;
 
                 SparseMem.BufferBindFlags = BIND_SHADER_RESOURCE | BIND_UNORDERED_ACCESS;
@@ -546,13 +546,13 @@ GraphicsAdapterInfo EngineFactoryD3D11Impl::GetGraphicsAdapterInfo(void*        
                 {
                     SparseMem.CapFlags |=
                         SPARSE_MEMORY_CAP_FLAG_SHADER_RESOURCE_RESIDENCY |
-                        SPARSE_MEMORY_CAP_FLAG_RESIDENCY_BUFFER |
-                        SPARSE_MEMORY_CAP_FLAG_RESIDENCY_TEXTURE_2D |
-                        SPARSE_MEMORY_CAP_FLAG_RESIDENCY_ALIASED; // AZ TODO: check
+                        SPARSE_MEMORY_CAP_FLAG_NON_RESIDENT_STRICT;
                 }
                 if (d3d11TiledResources.TiledResourcesTier >= D3D11_TILED_RESOURCES_TIER_3)
                 {
-                    SparseMem.CapFlags |= SPARSE_MEMORY_CAP_FLAG_TEXTURE_3D | SPARSE_MEMORY_CAP_FLAG_RESIDENCY_TEXTURE_3D;
+                    SparseMem.CapFlags |=
+                        SPARSE_MEMORY_CAP_FLAG_TEXTURE_3D |
+                        SPARSE_MEMORY_CAP_FLAG_STANDARD_3D_BLOCK_SHAPE;
                 }
 
                 for (Uint32 q = 0; q < AdapterInfo.NumQueues; ++q)

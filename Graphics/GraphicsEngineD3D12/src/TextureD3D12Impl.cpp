@@ -187,7 +187,7 @@ TextureD3D12Impl::TextureD3D12Impl(IReferenceCounters*        pRefCounters,
     if (m_Desc.Usage == USAGE_SPARSE)
     {
         // In Direct3D12 sparse resources is always resident and aliased
-        m_Desc.SparseFlags |= SPARSE_RESOURCE_FLAG_RESIDENT | SPARSE_RESOURCE_FLAG_ALIASED;
+        m_Desc.SparseFlags |= SPARSE_RESOURCE_FLAG_ALIASED;
 
         d3d12TexDesc.Layout = D3D12_TEXTURE_LAYOUT_64KB_UNDEFINED_SWIZZLE;
 

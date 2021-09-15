@@ -67,9 +67,6 @@ void ValidateMapTextureParams(const TextureDesc& TexDesc,
                               Uint32             MapFlags,
                               const Box*         pMapRegion);
 
-/// Returns sparse texture properties for standard blocks
-TextureSparseProperties GetTextureSparsePropertiesForStandardBlocks(const TextureDesc& TexDesc);
-
 inline uint3 GetNumTilesInMipLevel(const TextureDesc& Desc, const TextureSparseProperties& Props, Uint32 MipLevel)
 {
     // Texture size may be not multiple of tile size

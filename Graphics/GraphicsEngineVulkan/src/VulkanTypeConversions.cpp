@@ -1936,7 +1936,7 @@ DeviceFeatures VkFeaturesToDeviceFeatures(uint32_t                              
     INIT_FEATURE(VertexPipelineUAVWritesAndAtomics, vkFeatures.vertexPipelineStoresAndAtomics);
     INIT_FEATURE(PixelUAVWritesAndAtomics,          vkFeatures.fragmentStoresAndAtomics);
     INIT_FEATURE(TextureUAVExtendedFormats,         vkFeatures.shaderStorageImageExtendedFormats);
-    INIT_FEATURE(SparseMemory,                      vkFeatures.sparseBinding);
+    INIT_FEATURE(SparseMemory,                      vkFeatures.sparseBinding && (vkFeatures.sparseResidencyBuffer || vkFeatures.sparseResidencyImage2D)); // requires support for resident resources
     // clang-format on
 
     const auto& MeshShaderFeats = ExtFeatures.MeshShader;
@@ -2021,14 +2021,13 @@ DeviceFeatures VkFeaturesToDeviceFeatures(uint32_t                              
 
 VkBufferCreateFlags SparseResFlagsToVkBufferCreateFlags(SPARSE_RESOURCE_FLAGS Flags)
 {
-    static_assert(SPARSE_RESOURCE_FLAG_LAST == (1u << 1), "This function must be updated to handle new sparse resource flag");
-    VkBufferCreateFlags Result = VK_BUFFER_CREATE_SPARSE_BINDING_BIT;
+    static_assert(SPARSE_RESOURCE_FLAG_LAST == (1u << 0), "This function must be updated to handle new sparse resource flag");
+    VkBufferCreateFlags Result = VK_BUFFER_CREATE_SPARSE_BINDING_BIT | VK_BUFFER_CREATE_SPARSE_RESIDENCY_BIT;
     while (Flags != 0)
     {
         auto FlagBit = ExtractLSB(Flags);
         switch (FlagBit)
         {
-            case SPARSE_RESOURCE_FLAG_RESIDENT: Result |= VK_BUFFER_CREATE_SPARSE_RESIDENCY_BIT; break;
             case SPARSE_RESOURCE_FLAG_ALIASED: Result |= VK_BUFFER_CREATE_SPARSE_ALIASED_BIT; break;
             default: UNEXPECTED("Unexpected sparse resource flag");
         }
@@ -2038,14 +2037,13 @@ VkBufferCreateFlags SparseResFlagsToVkBufferCreateFlags(SPARSE_RESOURCE_FLAGS Fl
 
 VkImageCreateFlags SparseResFlagsToVkImageCreateFlags(SPARSE_RESOURCE_FLAGS Flags)
 {
-    static_assert(SPARSE_RESOURCE_FLAG_LAST == (1u << 1), "This function must be updated to handle new sparse resource flag");
-    VkImageCreateFlags Result = VK_IMAGE_CREATE_SPARSE_BINDING_BIT;
+    static_assert(SPARSE_RESOURCE_FLAG_LAST == (1u << 0), "This function must be updated to handle new sparse resource flag");
+    VkImageCreateFlags Result = VK_IMAGE_CREATE_SPARSE_BINDING_BIT | VK_IMAGE_CREATE_SPARSE_RESIDENCY_BIT;
     while (Flags != 0)
     {
         auto FlagBit = ExtractLSB(Flags);
         switch (FlagBit)
         {
-            case SPARSE_RESOURCE_FLAG_RESIDENT: Result |= VK_IMAGE_CREATE_SPARSE_RESIDENCY_BIT; break;
             case SPARSE_RESOURCE_FLAG_ALIASED: Result |= VK_IMAGE_CREATE_SPARSE_ALIASED_BIT; break;
             default: UNEXPECTED("Unexpected sparse resource flag");
         }

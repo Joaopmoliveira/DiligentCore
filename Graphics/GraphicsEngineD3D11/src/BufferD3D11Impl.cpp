@@ -87,7 +87,7 @@ BufferD3D11Impl::BufferD3D11Impl(IReferenceCounters*        pRefCounters,
         D3D11BuffDesc.MiscFlags |= D3D11_RESOURCE_MISC_TILED;
 
         // In Direct3D11 sparse resources is always resident and aliased
-        m_Desc.SparseFlags |= SPARSE_RESOURCE_FLAG_RESIDENT | SPARSE_RESOURCE_FLAG_ALIASED;
+        m_Desc.SparseFlags |= SPARSE_RESOURCE_FLAG_ALIASED;
     }
     D3D11BuffDesc.Usage = UsageToD3D11Usage(m_Desc.Usage);
 

@@ -1739,7 +1739,7 @@ struct SparseTextureMemoryBindRange
 
     /// Region in pixels where to bind/unbind memory.
     /// Must be multiple of TextureSparseProperties::TileSize.
-    Box              Region        DEFAULT_INITIALIZER({});
+    Box              Region        DEFAULT_INITIALIZER({}); // AZ TODO: mip tail can contain multiple blocks which may be bound separatelly (DX only?)
     
     /// Size of the memory which will be bound/unbound to Region.
     /// Memory size must equal to the number of tiles in Region multiplied by the sparse block size.

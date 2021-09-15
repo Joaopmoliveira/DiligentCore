@@ -3020,9 +3020,9 @@ void DeviceContextD3D12Impl::BindSparseMemory(const BindSparseMemoryAttribs& Att
 
         for (Uint32 r = 0; r < Src.NumRanges; ++r)
         {
-            const auto& SrcRange = Src.pRanges[r];
-            const auto  MemRange = ClassPtrCast<DeviceMemoryD3D12Impl>(SrcRange.pMemory)->GetRange(SrcRange.MemoryOffset, SrcRange.MemorySize);
-            VERIFY_EXPR(MemRange.Size == SrcRange.MemorySize);
+            const auto& SrcRange  = Src.pRanges[r];
+            auto*       pMemD3D12 = ClassPtrCast<DeviceMemoryD3D12Impl>(SrcRange.pMemory);
+            const auto  MemRange  = pMemD3D12 ? pMemD3D12->GetRange(SrcRange.MemoryOffset, SrcRange.MemorySize) : DeviceMemoryRangeD3D12{};
 
             DEV_CHECK_ERR(MemRange.Offset % D3D12_TILED_RESOURCE_TILE_SIZE_IN_BYTES == 0,
                           "MemoryOffset must be multiple of sparse block size");
@@ -3038,7 +3038,7 @@ void DeviceContextD3D12Impl::BindSparseMemory(const BindSparseMemoryAttribs& Att
             Size.Width    = SrcRange.MemorySize / D3D12_TILED_RESOURCE_TILE_SIZE_IN_BYTES;
             Size.Height   = 1;
             Size.Depth    = 1;
-            Size.UseBox   = FALSE;
+            Size.UseBox   = TRUE;
             Size.NumTiles = Size.Width;
 
             // If pRangeFlags[i] is D3D12_TILE_RANGE_FLAG_NONE, that range defines sequential tiles in the heap,
@@ -3058,17 +3058,14 @@ void DeviceContextD3D12Impl::BindSparseMemory(const BindSparseMemoryAttribs& Att
 
         for (Uint32 r = 0; r < Src.NumRanges; ++r)
         {
-            const auto& SrcRange = Src.pRanges[r];
-            const auto  MemRange = ClassPtrCast<DeviceMemoryD3D12Impl>(SrcRange.pMemory)->GetRange(SrcRange.MemoryOffset, SrcRange.MemorySize);
-            VERIFY_EXPR(MemRange.Size == SrcRange.MemorySize);
+            const auto& SrcRange  = Src.pRanges[r];
+            auto*       pMemD3D12 = ClassPtrCast<DeviceMemoryD3D12Impl>(SrcRange.pMemory);
+            const auto  MemRange  = pMemD3D12 ? pMemD3D12->GetRange(SrcRange.MemoryOffset, SrcRange.MemorySize) : DeviceMemoryRangeD3D12{};
 
             auto& Dst = TileMappingMap[TileMappingKey{pTexD3D12->GetD3D12Resource(), MemRange.pHandle}];
 
             Dst.Coordinates.emplace_back();
             auto& Coord = Dst.Coordinates.back();
-            Coord.X     = SrcRange.Region.MinX / TexSparseProps.TileSize[0];
-            Coord.Y     = SrcRange.Region.MinY / TexSparseProps.TileSize[1];
-            Coord.Z     = SrcRange.Region.MinZ / TexSparseProps.TileSize[2];
 
             if (TexDesc.Type == RESOURCE_DIM_TEX_3D)
                 Coord.Subresource = D3D12CalcSubresource(SrcRange.MipLevel, 0, 0, TexDesc.MipLevels, 1);
@@ -3076,12 +3073,34 @@ void DeviceContextD3D12Impl::BindSparseMemory(const BindSparseMemoryAttribs& Att
                 Coord.Subresource = D3D12CalcSubresource(SrcRange.MipLevel, SrcRange.ArraySlice, 0, TexDesc.MipLevels, TexDesc.ArraySize);
 
             Dst.RegionSizes.emplace_back();
-            auto& Size    = Dst.RegionSizes.back();
-            Size.Width    = (SrcRange.Region.Width() + TexSparseProps.TileSize[0] - 1) / TexSparseProps.TileSize[0];
-            Size.Height   = static_cast<UINT16>((SrcRange.Region.Height() + TexSparseProps.TileSize[1] - 1) / TexSparseProps.TileSize[1]);
-            Size.Depth    = static_cast<UINT16>((SrcRange.Region.Depth() + TexSparseProps.TileSize[2] - 1) / TexSparseProps.TileSize[2]);
-            Size.UseBox   = FALSE;
-            Size.NumTiles = Size.Width * Size.Height * Size.Depth;
+            auto& Size = Dst.RegionSizes.back();
+
+            if (SrcRange.MipLevel < TexSparseProps.FirstMipInTail)
+            {
+                Coord.X = SrcRange.Region.MinX / TexSparseProps.TileSize[0];
+                Coord.Y = SrcRange.Region.MinY / TexSparseProps.TileSize[1];
+                Coord.Z = SrcRange.Region.MinZ / TexSparseProps.TileSize[2];
+
+                Size.Width    = (SrcRange.Region.Width() + TexSparseProps.TileSize[0] - 1) / TexSparseProps.TileSize[0];
+                Size.Height   = static_cast<UINT16>((SrcRange.Region.Height() + TexSparseProps.TileSize[1] - 1) / TexSparseProps.TileSize[1]);
+                Size.Depth    = static_cast<UINT16>((SrcRange.Region.Depth() + TexSparseProps.TileSize[2] - 1) / TexSparseProps.TileSize[2]);
+                Size.UseBox   = TRUE;
+                Size.NumTiles = Size.Width * Size.Height * Size.Depth;
+            }
+            else
+            {
+                // The X coordinate is used to indicate a tile within the packed mip region, rather than a logical region of a single subresource.
+                // The Y and Z coordinates must be zero.
+                Coord.X = 0;
+                Coord.Y = 0;
+                Coord.Z = 0;
+
+                Size.Width    = 0;
+                Size.Height   = 0;
+                Size.Depth    = 0;
+                Size.UseBox   = FALSE;
+                Size.NumTiles = TexSparseProps.MipTailSize / D3D12_TILED_RESOURCE_TILE_SIZE_IN_BYTES;
+            }
 
             Dst.RangeFlags.emplace_back(SrcRange.pMemory ? D3D12_TILE_RANGE_FLAG_NONE : D3D12_TILE_RANGE_FLAG_NULL);
             Dst.HeapRangeStartOffsets.emplace_back(static_cast<UINT>(MemRange.Offset / D3D12_TILED_RESOURCE_TILE_SIZE_IN_BYTES));

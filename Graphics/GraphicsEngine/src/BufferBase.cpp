@@ -131,11 +131,6 @@ void ValidateBufferDesc(const BufferDesc& Desc, const IRenderDevice* pDevice) no
             VERIFY_BUFFER(SparseProps.CapFlags & SPARSE_MEMORY_CAP_FLAG_BUFFER, "sparse buffer requires SPARSE_MEMORY_CAP_FLAG_BUFFER capability");
             if ((Desc.SparseFlags & SPARSE_RESOURCE_FLAG_ALIASED) != 0)
                 VERIFY_BUFFER(SparseProps.CapFlags & SPARSE_MEMORY_CAP_FLAG_ALIASED, "SPARSE_RESOURCE_FLAG_ALIASED flag requires SPARSE_MEMORY_CAP_FLAG_ALIASED capability");
-            if ((Desc.SparseFlags & SPARSE_RESOURCE_FLAG_RESIDENT) != 0)
-                VERIFY_BUFFER(SparseProps.CapFlags & SPARSE_MEMORY_CAP_FLAG_RESIDENCY_BUFFER, "SPARSE_RESOURCE_FLAG_RESIDENT flag requires SPARSE_MEMORY_CAP_FLAG_RESIDENCY_BUFFER capability");
-            if ((Desc.SparseFlags & SPARSE_RESOURCE_FLAG_ALIASED) != 0 && (Desc.SparseFlags & SPARSE_RESOURCE_FLAG_RESIDENT) != 0)
-                VERIFY_BUFFER(SparseProps.CapFlags & SPARSE_MEMORY_CAP_FLAG_RESIDENCY_ALIASED,
-                              "combination of SPARSE_RESOURCE_FLAG_ALIASED and SPARSE_RESOURCE_FLAG_RESIDENT flags requires SPARSE_MEMORY_CAP_FLAG_RESIDENCY_ALIASED capability");
             VERIFY_BUFFER((Desc.BindFlags & ~SparseProps.BufferBindFlags) == 0,
                           "the following bind flags are not allowed for a sparse buffer: ", GetBindFlagsString(Desc.BindFlags & ~SparseProps.BufferBindFlags, ", "), '.');
             break;

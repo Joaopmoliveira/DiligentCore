@@ -2576,46 +2576,34 @@ typedef struct DrawCommandProperties DrawCommandProperties;
 DILIGENT_TYPED_ENUM(SPARSE_MEMORY_CAP_FLAGS, Uint32)
 {
     SPARSE_MEMORY_CAP_FLAG_NONE                         = 0,
-
-    /// Sparse memory can be used for buffers.
-    SPARSE_MEMORY_CAP_FLAG_BUFFER                       = 1u << 0,
-
-    /// Sparse memory can be used for 2D textures, including 2D arrays, cubemap and cubemap arrays.
-    SPARSE_MEMORY_CAP_FLAG_TEXTURE_2D                   = 1u << 1,
-        
-    /// Sparse memory can be used for 3D textures.
-    SPARSE_MEMORY_CAP_FLAG_TEXTURE_3D                   = 1u << 2,
-     
-    /// Sparse memory can be bound in different ranges in the same resource
-    /// or can be shared between multiple resources.
-    SPARSE_MEMORY_CAP_FLAG_ALIASED                      = 1u << 3,
-
+    
     /// Specifies whether texture operations that return resource residency information are supported in shader code.
-    SPARSE_MEMORY_CAP_FLAG_SHADER_RESOURCE_RESIDENCY    = 1u << 4,
+    SPARSE_MEMORY_CAP_FLAG_SHADER_RESOURCE_RESIDENCY    = 1u << 0,
         
     /// Specifies whether the device can access partially resident buffers.
-    SPARSE_MEMORY_CAP_FLAG_RESIDENCY_BUFFER             = 1u << 5,
+    SPARSE_MEMORY_CAP_FLAG_BUFFER             = 1u << 1,
    
     /// Specifies whether the device can access partially resident 2D textures with 1 sample per pixel.
-    SPARSE_MEMORY_CAP_FLAG_RESIDENCY_TEXTURE_2D         = 1u << 6,
+    SPARSE_MEMORY_CAP_FLAG_TEXTURE_2D         = 1u << 2,
 
     /// Specifies whether the device can access partially resident 3D textures.
-    SPARSE_MEMORY_CAP_FLAG_RESIDENCY_TEXTURE_3D         = 1u << 7,
+    SPARSE_MEMORY_CAP_FLAG_TEXTURE_3D         = 1u << 3,
     
     /// Specifies whether the device can access partially resident 2D textures with 2 samples per pixel.
-    SPARSE_MEMORY_CAP_FLAG_RESIDENCY_TEXTURE_2_SAMPLES  = 1u << 8,
+    SPARSE_MEMORY_CAP_FLAG_TEXTURE_2_SAMPLES  = 1u << 4,
 
     /// Specifies whether the device can access partially resident 2D textures with 4 samples per pixel.
-    SPARSE_MEMORY_CAP_FLAG_RESIDENCY_TEXTURE_4_SAMPLES  = 1u << 9,
+    SPARSE_MEMORY_CAP_FLAG_TEXTURE_4_SAMPLES  = 1u << 5,
 
     /// Specifies whether the device can access partially resident 2D textures with 8 samples per pixel.
-    SPARSE_MEMORY_CAP_FLAG_RESIDENCY_TEXTURE_8_SAMPLES  = 1u << 10,
+    SPARSE_MEMORY_CAP_FLAG_TEXTURE_8_SAMPLES  = 1u << 6,
 
     /// Specifies whether the device can access partially resident 2D textures with 16 samples per pixel.
-    SPARSE_MEMORY_CAP_FLAG_RESIDENCY_TEXTURE_16_SAMPLES = 1u << 11,
+    SPARSE_MEMORY_CAP_FLAG_TEXTURE_16_SAMPLES = 1u << 7,
     
-    /// Specifies whether the device can correctly access data aliased into multiple locations.
-    SPARSE_MEMORY_CAP_FLAG_RESIDENCY_ALIASED            = 1u << 12,
+    /// Specifies whether the device can correctly access data aliased into multiple locations,
+    /// reading physical memory from multiple aliased locations will return the same value.
+    SPARSE_MEMORY_CAP_FLAG_ALIASED            = 1u << 8,
 
     /// Specifies whether the device will access all single-sample 2D sparse texture using the standard sparse texture block shapes.
     /// If not present, call IRenderDevice::GetTextureFormatSparseInfo() to get supported sparse block dimensions.
@@ -2627,7 +2615,7 @@ DILIGENT_TYPED_ENUM(SPARSE_MEMORY_CAP_FLAGS, Uint32)
     ///  |    32-Bit   |  128 x 128 x 1  |
     ///  |    64-Bit   |  128 x  64 x 1  |
     ///  |   128-Bit   |   64 x  64 x 1  |
-    SPARSE_MEMORY_CAP_FLAG_RESIDENCY_STANDARD_2D_BLOCK_SHAPE   = 1u << 13,
+    SPARSE_MEMORY_CAP_FLAG_STANDARD_2D_BLOCK_SHAPE   = 1u << 9,
         
     /// Specifies whether the device will access all multi-sample 2D sparse resources using the standard sparse texture block shapes.
     /// If not present, call IRenderDevice::GetTextureFormatSparseInfo() to get supported sparse block dimensions.
@@ -2639,7 +2627,7 @@ DILIGENT_TYPED_ENUM(SPARSE_MEMORY_CAP_FLAGS, Uint32)
     ///  |    32-Bit   |    64 x 128 x 1  |    64 x  64 x 1  |   32 x  64 x 1   |    32 x 32 x 1    |
     ///  |    64-Bit   |    64 x  64 x 1  |    64 x  32 x 1  |   32 x  32 x 1   |    32 x 16 x 1    |
     ///  |   128-Bit   |    32 x  64 x 1  |    32 x  32 x 1  |   16 x  32 x 1   |    16 x 16 x 1    |
-    SPARSE_MEMORY_CAP_FLAG_RESIDENCY_STANDARD_2DMS_BLOCK_SHAPE = 1u << 14,
+    SPARSE_MEMORY_CAP_FLAG_STANDARD_2DMS_BLOCK_SHAPE = 1u << 10,
         
     /// Specifies whether the device will access all 3D sparse resources using the standard sparse texture block shapes.
     /// If not present, call IRenderDevice::GetTextureFormatSparseInfo() to get supported sparse block dimensions.
@@ -2651,18 +2639,22 @@ DILIGENT_TYPED_ENUM(SPARSE_MEMORY_CAP_FLAGS, Uint32)
     ///  |    32-Bit   |   32 x 32 x 16  |
     ///  |    64-Bit   |   32 x 16 x 16  |
     ///  |   128-Bit   |   16 x 16 x 16  |
-    SPARSE_MEMORY_CAP_FLAG_RESIDENCY_STANDARD_3D_BLOCK_SHAPE   = 1u << 15,
+    SPARSE_MEMORY_CAP_FLAG_STANDARD_3D_BLOCK_SHAPE   = 1u << 11,
         
-    // Specifies if textures with mip level dimensions that are not integer multiples of the corresponding
-    // dimensions of the sparse texture block may be placed in the mip tail.
-    SPARSE_MEMORY_CAP_FLAG_RESIDENCY_ALIGNED_MIP_SIZE          = 1u << 16,
+    /// Specifies if textures with mip level dimensions that are not integer multiples of the corresponding
+    /// dimensions of the sparse image block may be placed in the mip tail.
+    /// If this capability is not reported, only mip levels with dimensions smaller than the TextureSparseProperties::TilesSize will be placed in the mip tail. 
+    SPARSE_MEMORY_CAP_FLAG_ALIGNED_MIP_SIZE          = 1u << 12,
    
-    /// Specifies whether the device can consistently access non-resident regions of a resource.
-    /// If not present, reads of unbound regions of the image will return undefined values.
-    /// Both reads and writes are still considered safe and will not affect other resources or populated regions of the image.
-    /// If present, all reads of unbound regions of the image will behave as if the region was bound to memory populated with all zeros; writes will be discarded.
+    /// Specifies whether the device can consistently access non-resident (without bound memory) regions of a resource.
+    /// If not present, reads of unbound regions of the resource will return undefined values.
+    /// Both reads and writes are still considered safe and will not affect other resources or populated regions of the resource.
+    /// If present, all reads of unbound regions of the resource will behave as if the region was bound to memory populated with all zeros; writes will be discarded.
     /// Non-existent components of the format replaced by 1. For example, RG8_UNORM format will be (0, 0, 1, 1).
-    SPARSE_MEMORY_CAP_FLAG_RESIDENCY_NON_RESIDENT_STRICT       = 1u << 17,
+    SPARSE_MEMORY_CAP_FLAG_NON_RESIDENT_STRICT       = 1u << 13,
+
+    /// Direct3D11 & 12 does not support sparse texture array with mip levels which dimension is less than tile size.
+    SPARSE_MEMORY_CAP_FLAG_TEXTURE_2D_ARRAY_MIP_TAIL = 1U << 14,
 
     //SPARSE_MEMORY_CAP_FLAG_TEXTURE_INT64_ATOMICS               = 1u << 18, // AZ TODO
 };
@@ -3944,8 +3936,7 @@ DILIGENT_TYPED_ENUM(STATE_TRANSITION_TYPE, Uint8)
 DILIGENT_TYPED_ENUM(SPARSE_RESOURCE_FLAGS, Uint8)
 {
     SPARSE_RESOURCE_FLAG_NONE     = 0,
-    SPARSE_RESOURCE_FLAG_RESIDENT = 1 << 0,
-    SPARSE_RESOURCE_FLAG_ALIASED  = 1 << 1,
+    SPARSE_RESOURCE_FLAG_ALIASED  = 1 << 0,
     SPARSE_RESOURCE_FLAG_LAST     = SPARSE_RESOURCE_FLAG_ALIASED,
 };
 DEFINE_FLAG_ENUM_OPERATORS(SPARSE_RESOURCE_FLAGS);

@@ -798,21 +798,20 @@ GraphicsAdapterInfo EngineFactoryD3D12Impl::GetGraphicsAdapterInfo(void*        
                     SparseMem.CapFlags =
                         SPARSE_MEMORY_CAP_FLAG_BUFFER |
                         SPARSE_MEMORY_CAP_FLAG_TEXTURE_2D |
-                        SPARSE_MEMORY_CAP_FLAG_RESIDENCY_STANDARD_2D_BLOCK_SHAPE |
+                        SPARSE_MEMORY_CAP_FLAG_STANDARD_2D_BLOCK_SHAPE |
                         SPARSE_MEMORY_CAP_FLAG_ALIASED;
-                    // AZ TODO: When the size of a texture mipmap level is an integer multiple of the standard tile shape for its format, it is guaranteed to be nonpacked.
 
                     if (d3d12Features.TiledResourcesTier >= D3D12_TILED_RESOURCES_TIER_2)
                     {
                         SparseMem.CapFlags |=
                             SPARSE_MEMORY_CAP_FLAG_SHADER_RESOURCE_RESIDENCY |
-                            SPARSE_MEMORY_CAP_FLAG_RESIDENCY_BUFFER |
-                            SPARSE_MEMORY_CAP_FLAG_RESIDENCY_TEXTURE_2D |
-                            SPARSE_MEMORY_CAP_FLAG_RESIDENCY_ALIASED; // AZ TODO: check
+                            SPARSE_MEMORY_CAP_FLAG_NON_RESIDENT_STRICT;
                     }
                     if (d3d12Features.TiledResourcesTier >= D3D12_TILED_RESOURCES_TIER_3)
                     {
-                        SparseMem.CapFlags |= SPARSE_MEMORY_CAP_FLAG_TEXTURE_3D | SPARSE_MEMORY_CAP_FLAG_RESIDENCY_TEXTURE_3D;
+                        SparseMem.CapFlags |=
+                            SPARSE_MEMORY_CAP_FLAG_TEXTURE_3D |
+                            SPARSE_MEMORY_CAP_FLAG_STANDARD_3D_BLOCK_SHAPE;
                     }
 
                     SparseMem.BufferBindFlags =

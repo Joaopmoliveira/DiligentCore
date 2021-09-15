@@ -130,8 +130,8 @@ DILIGENT_BEGIN_INTERFACE(IDeviceMemory, IDeviceObject)
     
     /// \param [in] NewSize - New size of the memory object, must be multiple of DeviceMemoryDesc::PageSize.
     /// 
-    /// \remarks  Depends on implementation it can resize existing memory object or
-    ///           create or destroy pages with memory objects.
+    /// \remarks  Depends on implementation function can resize existing memory object or
+    ///           create/destroy pages with separate memory objects.
     /// 
     /// \remarks  Must be externally synchronized with IDeviceMemory::GetCapacity() and IDeviceContext::BindSparseMemory().
     VIRTUAL Bool METHOD(Resize)(THIS_
@@ -142,7 +142,7 @@ DILIGENT_BEGIN_INTERFACE(IDeviceMemory, IDeviceObject)
     /// \remarks  Must be externally synchronized with IDeviceMemory::Resize() and IDeviceContext::BindSparseMemory().
     VIRTUAL Uint64 METHOD(GetCapacity)(THIS) PURE;
 
-    /// Checks is resource compatible with memory object.
+    /// Checks if resource is compatible with memory object.
     VIRTUAL Bool METHOD(IsCompatible)(THIS_
                                       IDeviceObject* pResource) CONST PURE;
 

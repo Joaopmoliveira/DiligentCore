@@ -61,7 +61,7 @@ TextureBaseD3D11::TextureBaseD3D11(IReferenceCounters*        pRefCounters,
             LOG_ERROR_AND_THROW("Texture '", m_Desc.Name, "': the following bind flags are not allowed for a sparse texture: ", GetBindFlagsString(m_Desc.BindFlags & ~AllowedBindFlags, ", "), '.');
 
         // In Direct3D11 sparse resources is always resident and aliased
-        m_Desc.SparseFlags |= SPARSE_RESOURCE_FLAG_RESIDENT | SPARSE_RESOURCE_FLAG_ALIASED;
+        m_Desc.SparseFlags |= SPARSE_RESOURCE_FLAG_ALIASED;
     }
 
     SetState(RESOURCE_STATE_UNDEFINED);

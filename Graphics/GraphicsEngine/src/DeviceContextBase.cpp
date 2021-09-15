@@ -1066,6 +1066,11 @@ bool VerifyBindSparseMemoryAttribs(const IRenderDevice* pDevice, const BindSpars
                                           Range.MemorySize, ") must not be greater than device memory size (", Capacity, ")");
                 // Can not check here because final memory offset depends on device memory object implementation
                 //CHECK_BIND_SPARSE_ATTRIBS(Range.MemoryOffset % BuffSparseProps.MemoryAlignment == 0)
+
+                const auto PageSize = Range.pMemory->GetDesc().PageSize;
+                CHECK_BIND_SPARSE_ATTRIBS(Range.MemoryOffset % PageSize + Range.MemorySize <= PageSize,
+                                          "pBufferBinds[", i, "].pRanges[", r, "] with MemoryOffset(", Range.MemoryOffset, ") and MemorySize(", Range.MemorySize,
+                                          "): memory range must be inside a single page, in Direct3D12 and Vulkan this will be an error");
             }
             else
             {
@@ -1100,11 +1105,11 @@ bool VerifyBindSparseMemoryAttribs(const IRenderDevice* pDevice, const BindSpars
                                       "pTextureBinds[", i, "].pRanges[", r, "].MipLevel(", Range.MipLevel, ") must be less than (", Desc.MipLevels, ")");
             CHECK_BIND_SPARSE_ATTRIBS(Range.MipLevel <= TexSparseProps.FirstMipInTail,
                                       "pTextureBinds[", i, "].pRanges[", r, "].MipLevel(", Range.MipLevel, ") must not be greater than first mip in tail (", TexSparseProps.FirstMipInTail, ")");
-            CHECK_BIND_SPARSE_ATTRIBS(Region.IsValid(),
-                                      "pTextureBinds[", i, "].pRanges[", r, "].Region must be valid");
 
             if (Range.MipLevel < TexSparseProps.FirstMipInTail)
             {
+                CHECK_BIND_SPARSE_ATTRIBS(Region.IsValid(),
+                                          "pTextureBinds[", i, "].pRanges[", r, "].Region must be valid");
                 CHECK_BIND_SPARSE_ATTRIBS(Region.MaxX <= TexWidth,
                                           "pTextureBinds[", i, "].pRanges[", r, "].Region.MaxX(", Region.MaxX, ") must not be greater than (", TexWidth, ")");
                 CHECK_BIND_SPARSE_ATTRIBS(Region.MaxY <= TexHeight,
@@ -1129,8 +1134,8 @@ bool VerifyBindSparseMemoryAttribs(const IRenderDevice* pDevice, const BindSpars
             {
                 CHECK_BIND_SPARSE_ATTRIBS(Region.MinX == 0 && Region.MinY == 0 && Region.MinZ == 0,
                                           "pTextureBinds[", i, "].pRanges[", r, "].Region: for mip tail MinX, MinY, MinZ must be zero");
-                CHECK_BIND_SPARSE_ATTRIBS(Region.MaxX == TexWidth && Region.MaxY == TexHeight && Region.MaxZ == TexDepth,
-                                          "pTextureBinds[", i, "].pRanges[", r, "].Region: for mip tail MaxX, MaxY, MaxZ must be equal to the mip dimension");
+                CHECK_BIND_SPARSE_ATTRIBS((Region.MaxX == 0 && Region.MaxY == 0 && Region.MaxZ == 1) || (Region.MaxX == TexWidth && Region.MaxY == TexHeight && Region.MaxZ == TexDepth),
+                                          "pTextureBinds[", i, "].pRanges[", r, "].Region: for mip tail MaxX, MaxY, MaxZ must be zero or equal to the mip dimension");
             }
 
             if (Desc.Type != RESOURCE_DIM_TEX_3D)
@@ -1167,6 +1172,11 @@ bool VerifyBindSparseMemoryAttribs(const IRenderDevice* pDevice, const BindSpars
                                               Range.MemorySize, ") must not be greater than device memory size (", Capacity, ")");
                     // Can not check here because final memory offset depends on device memory object implementation
                     //CHECK_BIND_SPARSE_ATTRIBS(Range.MemoryOffset % BuffSparseProps.MemoryAlignment == 0)
+
+                    const auto PageSize = Range.pMemory->GetDesc().PageSize;
+                    CHECK_BIND_SPARSE_ATTRIBS(Range.MemoryOffset % PageSize + Range.MemorySize <= PageSize,
+                                              "pTextureBinds[", i, "].pRanges[", r, "] with MemoryOffset(", Range.MemoryOffset, ") and MemorySize(", Range.MemorySize,
+                                              "): memory range must be inside a single page, in Direct3D12 and Vulkan this will be an error");
                 }
             }
 

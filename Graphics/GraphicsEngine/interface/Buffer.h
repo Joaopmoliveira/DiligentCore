@@ -207,7 +207,7 @@ struct BufferSparseProperties
 {
     /// Required alignment for memory offset and offset in buffer which is used in sparse binding command,
     /// see Diligent::SparseBufferMemoryBindRange.
-    Uint32  MemoryAlignment  DEFAULT_INITIALIZER(0);
+    Uint32  MemoryAlignment  DEFAULT_INITIALIZER(0); // AZ TODO: it is always equals to SparseBlockSize and can be removed
 };
 typedef struct BufferSparseProperties BufferSparseProperties;
 

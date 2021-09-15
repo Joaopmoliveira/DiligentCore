@@ -36,6 +36,8 @@
 namespace Diligent
 {
 
+TextureSparseProperties GetTextureSparsePropertiesForStandardBlocks(const TextureDesc& TexDesc);
+
 #define LOG_TEXTURE_ERROR_AND_THROW(...) LOG_ERROR_AND_THROW("Texture '", (Desc.Name ? Desc.Name : ""), "': ", ##__VA_ARGS__)
 #define VERIFY_TEXTURE(Expr, ...)                     \
     do                                                \
@@ -246,34 +248,36 @@ void ValidateTextureDesc(const TextureDesc& Desc, const IRenderDevice* pDevice) 
 
         if ((Desc.SparseFlags & SPARSE_RESOURCE_FLAG_ALIASED) != 0)
             VERIFY_TEXTURE(SparseProps.CapFlags & SPARSE_MEMORY_CAP_FLAG_ALIASED, "SPARSE_RESOURCE_FLAG_ALIASED flag requires SPARSE_MEMORY_CAP_FLAG_ALIASED capability");
-        if ((Desc.SparseFlags & SPARSE_RESOURCE_FLAG_ALIASED) != 0 && (Desc.SparseFlags & SPARSE_RESOURCE_FLAG_RESIDENT) != 0)
-            VERIFY_TEXTURE(SparseProps.CapFlags & SPARSE_MEMORY_CAP_FLAG_RESIDENCY_ALIASED,
-                           "combination of SPARSE_RESOURCE_FLAG_ALIASED and SPARSE_RESOURCE_FLAG_RESIDENT flags requires SPARSE_MEMORY_CAP_FLAG_RESIDENCY_ALIASED capability");
 
         static_assert(RESOURCE_DIM_NUM_DIMENSIONS == 9, "Please update the switch below to handle the new resource dimension type");
         switch (Desc.Type)
         {
             case RESOURCE_DIM_TEX_2D:
+                VERIFY_TEXTURE(SparseProps.CapFlags & SPARSE_MEMORY_CAP_FLAG_TEXTURE_2D,
+                               "2D texture requires SPARSE_MEMORY_CAP_FLAG_TEXTURE_2D capability");
+                break;
+
             case RESOURCE_DIM_TEX_2D_ARRAY:
             case RESOURCE_DIM_TEX_CUBE:
             case RESOURCE_DIM_TEX_CUBE_ARRAY:
                 VERIFY_TEXTURE(SparseProps.CapFlags & SPARSE_MEMORY_CAP_FLAG_TEXTURE_2D,
-                               "2D or Cube sparse texture requires SPARSE_MEMORY_CAP_FLAG_TEXTURE_2D capability");
-                if ((Desc.SparseFlags & SPARSE_RESOURCE_FLAG_RESIDENT) != 0)
+                               "2D array or Cube sparse textures requires SPARSE_MEMORY_CAP_FLAG_TEXTURE_2D capability");
+
+                if ((SparseProps.CapFlags & SPARSE_MEMORY_CAP_FLAG_TEXTURE_2D_ARRAY_MIP_TAIL) == 0)
                 {
-                    VERIFY_TEXTURE(SparseProps.CapFlags & SPARSE_MEMORY_CAP_FLAG_RESIDENCY_TEXTURE_2D,
-                                   "SPARSE_RESOURCE_FLAG_RESIDENT flag requires SPARSE_MEMORY_CAP_FLAG_RESIDENCY_TEXTURE_2D capability");
+                    const auto  Props = GetTextureSparsePropertiesForStandardBlocks(Desc);
+                    const uint2 MipSize{std::max(1u, Desc.Width >> Desc.MipLevels),
+                                        std::max(1u, Desc.Height >> Desc.MipLevels)};
+                    VERIFY_TEXTURE(MipSize.x >= Props.TileSize[0] && MipSize.y >= Props.TileSize[1],
+                                   "2D array or Cube sparse texture with MipLevels (", Desc.MipLevels,
+                                   ") where last mip with dimension (", MipSize.x, ", ", MipSize.y, ") is less than tile size (",
+                                   Props.TileSize[0], ", ", Props.TileSize[1], ") requires SPARSE_MEMORY_CAP_FLAG_TEXTURE_2D_ARRAY_MIP_TAIL capability");
                 }
                 break;
 
             case RESOURCE_DIM_TEX_3D:
                 VERIFY_TEXTURE(SparseProps.CapFlags & SPARSE_MEMORY_CAP_FLAG_TEXTURE_3D,
                                "3D sparse texture requires SPARSE_MEMORY_CAP_FLAG_TEXTURE_3D capability");
-                if ((Desc.SparseFlags & SPARSE_RESOURCE_FLAG_RESIDENT) != 0)
-                {
-                    VERIFY_TEXTURE(SparseProps.CapFlags & SPARSE_MEMORY_CAP_FLAG_RESIDENCY_TEXTURE_3D,
-                                   "SPARSE_RESOURCE_FLAG_RESIDENT flag requires SPARSE_MEMORY_CAP_FLAG_RESIDENCY_TEXTURE_3D capability");
-                }
                 break;
 
             case RESOURCE_DIM_TEX_1D:
@@ -739,7 +743,7 @@ TextureSparseProperties GetTextureSparsePropertiesForStandardBlocks(const Textur
         (Props.TileSize[1] / FmtAttribs.BlockHeight) *
         Props.TileSize[2] * TexDesc.SampleCount * BytesPerBlock;
     VERIFY_EXPR(BytesPerTile == SparseBlockSize);
-
+    /*
     const auto TexDepth  = TexDesc.Type == RESOURCE_DIM_TEX_3D ? TexDesc.Depth : 1u;
     const auto ArraySize = TexDesc.Type == RESOURCE_DIM_TEX_3D ? 1u : TexDesc.ArraySize;
 
@@ -776,7 +780,7 @@ TextureSparseProperties GetTextureSparsePropertiesForStandardBlocks(const Textur
     Props.MemorySize      = Props.MipTailStride * ArraySize;
     Props.MemoryAlignment = SparseBlockSize;
     Props.Flags           = SPARSE_TEXTURE_FLAG_NONE;
-
+    */
     return Props;
 }
 

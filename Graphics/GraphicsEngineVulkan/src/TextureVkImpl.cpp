@@ -795,47 +795,27 @@ void TextureVkImpl::InitSparseProperties()
     const auto               MemReq        = LogicalDevice.GetImageMemoryRequirements(GetVkImage());
     TextureSparseProperties& Props         = *m_pSparseProps;
 
-    if (m_Desc.SparseFlags & SPARSE_RESOURCE_FLAG_RESIDENT)
-    {
-        // If the image was not created with VK_IMAGE_CREATE_SPARSE_RESIDENCY_BIT then pSparseMemoryRequirementCount will be set to zero.
-        uint32_t SparseReqCount = 0;
-        vkGetImageSparseMemoryRequirements(LogicalDevice.GetVkDevice(), GetVkImage(), &SparseReqCount, nullptr);
-        VERIFY(SparseReqCount > 0, "Sparse memory requirements for image must not be zero");
+    // If the image was not created with VK_IMAGE_CREATE_SPARSE_RESIDENCY_BIT then pSparseMemoryRequirementCount will be set to zero.
+    uint32_t SparseReqCount = 0;
+    vkGetImageSparseMemoryRequirements(LogicalDevice.GetVkDevice(), GetVkImage(), &SparseReqCount, nullptr);
+    VERIFY(SparseReqCount > 0, "Sparse memory requirements for image must not be zero");
 
-        SparseReqCount = std::min(SparseReqCount, 2u);
+    SparseReqCount = std::min(SparseReqCount, 2u);
 
-        // Texture with depth-stencil format may be implemented with a two memory blocks per tile.
-        VkSparseImageMemoryRequirements SparseReq[2] = {};
-        vkGetImageSparseMemoryRequirements(LogicalDevice.GetVkDevice(), GetVkImage(), &SparseReqCount, SparseReq);
+    // Texture with depth-stencil format may be implemented with a two memory blocks per tile.
+    VkSparseImageMemoryRequirements SparseReq[2] = {};
+    vkGetImageSparseMemoryRequirements(LogicalDevice.GetVkDevice(), GetVkImage(), &SparseReqCount, SparseReq);
 
-        Props.MipTailOffset  = SparseReq[0].imageMipTailOffset;
-        Props.MipTailSize    = StaticCast<Uint32>(SparseReq[0].imageMipTailSize);
-        Props.MipTailStride  = SparseReq[0].imageMipTailStride;
-        Props.FirstMipInTail = SparseReq[0].imageMipTailFirstLod;
-        Props.TileSize[0]    = SparseReq[0].formatProperties.imageGranularity.width;
-        Props.TileSize[1]    = SparseReq[0].formatProperties.imageGranularity.height;
-        Props.TileSize[2]    = SparseReq[0].formatProperties.imageGranularity.depth;
-        Props.Flags          = VkSparseImageFormatFlagsToSparseTextureFlags(SparseReq[0].formatProperties.flags);
+    Props.MipTailOffset  = SparseReq[0].imageMipTailOffset;
+    Props.MipTailSize    = StaticCast<Uint32>(SparseReq[0].imageMipTailSize);
+    Props.MipTailStride  = SparseReq[0].imageMipTailStride;
+    Props.FirstMipInTail = SparseReq[0].imageMipTailFirstLod;
+    Props.TileSize[0]    = SparseReq[0].formatProperties.imageGranularity.width;
+    Props.TileSize[1]    = SparseReq[0].formatProperties.imageGranularity.height;
+    Props.TileSize[2]    = SparseReq[0].formatProperties.imageGranularity.depth;
+    Props.Flags          = VkSparseImageFormatFlagsToSparseTextureFlags(SparseReq[0].formatProperties.flags);
 
-        // AZ TODO: depth stencil
-    }
-    else
-    {
-        Props = GetTextureSparsePropertiesForStandardBlocks(m_Desc);
-        VERIFY_EXPR(Props.MemorySize <= MemReq.size);
-
-        // If calculated size is less than reported by Vulkan then we need to update mip tail properties
-        if (m_Desc.Type == RESOURCE_DIM_TEX_3D || m_Desc.ArraySize == 1)
-        {
-            Props.MipTailSize = StaticCast<Uint32>(MemReq.size - Props.MipTailOffset);
-        }
-        else
-        {
-            VERIFY_EXPR(Props.MipTailStride * m_Desc.ArraySize == MemReq.size);
-            Props.MipTailStride = MemReq.size / m_Desc.ArraySize;
-            Props.MipTailSize   = StaticCast<Uint32>(Props.MipTailStride - Props.MipTailOffset);
-        }
-    }
+    // AZ TODO: depth stencil
 
     if (m_Desc.Type == RESOURCE_DIM_TEX_3D || m_Desc.ArraySize == 1)
     {
@@ -846,7 +826,8 @@ void TextureVkImpl::InitSparseProperties()
     {
         VERIFY_EXPR(Props.MipTailStride > 0);
         VERIFY_EXPR(Props.MipTailStride * m_Desc.ArraySize == MemReq.size);
-        VERIFY_EXPR(Props.MipTailOffset + Props.MipTailSize == Props.MipTailStride);
+        VERIFY_EXPR(Props.MipTailOffset < Props.MipTailStride);
+        VERIFY_EXPR(Props.MipTailOffset + Props.MipTailSize <= Props.MipTailStride);
     }
 
     Props.MemorySize      = MemReq.size;

@@ -2309,7 +2309,7 @@ void DeviceContextD3D11Impl::BindSparseMemory(const BindSparseMemoryAttribs& Att
             Size.Width    = SrcRange.MemorySize / D3D11_2_TILED_RESOURCE_TILE_SIZE_IN_BYTES;
             Size.Height   = 1;
             Size.Depth    = 1;
-            Size.bUseBox  = FALSE;
+            Size.bUseBox  = TRUE;
             Size.NumTiles = Size.Width;
 
             RangeFlags.emplace_back(pMemD3D11 ? D3D11_TILE_RANGE_FLAG(0) : D3D11_TILE_RANGE_NULL);
@@ -2336,9 +2336,6 @@ void DeviceContextD3D11Impl::BindSparseMemory(const BindSparseMemoryAttribs& Att
 
             Coordinates.emplace_back();
             auto& Coord = Coordinates.back();
-            Coord.X     = SrcRange.Region.MinX / TexSparseProps.TileSize[0];
-            Coord.Y     = SrcRange.Region.MinY / TexSparseProps.TileSize[1];
-            Coord.Z     = SrcRange.Region.MinZ / TexSparseProps.TileSize[2];
 
             if (TexDesc.Type == RESOURCE_DIM_TEX_3D)
                 Coord.Subresource = D3D11CalcSubresource(SrcRange.MipLevel, 0, TexDesc.MipLevels);
@@ -2346,12 +2343,34 @@ void DeviceContextD3D11Impl::BindSparseMemory(const BindSparseMemoryAttribs& Att
                 Coord.Subresource = D3D11CalcSubresource(SrcRange.MipLevel, SrcRange.ArraySlice, TexDesc.MipLevels);
 
             RegionSizes.emplace_back();
-            auto& Size    = RegionSizes.back();
-            Size.Width    = (SrcRange.Region.Width() + TexSparseProps.TileSize[0] - 1) / TexSparseProps.TileSize[0];
-            Size.Height   = static_cast<UINT16>((SrcRange.Region.Height() + TexSparseProps.TileSize[1] - 1) / TexSparseProps.TileSize[1]);
-            Size.Depth    = static_cast<UINT16>((SrcRange.Region.Depth() + TexSparseProps.TileSize[2] - 1) / TexSparseProps.TileSize[2]);
-            Size.bUseBox  = FALSE;
-            Size.NumTiles = Size.Width * Size.Height * Size.Depth;
+            auto& Size = RegionSizes.back();
+
+            if (SrcRange.MipLevel < TexSparseProps.FirstMipInTail)
+            {
+                Coord.X = SrcRange.Region.MinX / TexSparseProps.TileSize[0];
+                Coord.Y = SrcRange.Region.MinY / TexSparseProps.TileSize[1];
+                Coord.Z = SrcRange.Region.MinZ / TexSparseProps.TileSize[2];
+
+                Size.Width    = (SrcRange.Region.Width() + TexSparseProps.TileSize[0] - 1) / TexSparseProps.TileSize[0];
+                Size.Height   = static_cast<UINT16>((SrcRange.Region.Height() + TexSparseProps.TileSize[1] - 1) / TexSparseProps.TileSize[1]);
+                Size.Depth    = static_cast<UINT16>((SrcRange.Region.Depth() + TexSparseProps.TileSize[2] - 1) / TexSparseProps.TileSize[2]);
+                Size.bUseBox  = TRUE;
+                Size.NumTiles = Size.Width * Size.Height * Size.Depth;
+            }
+            else
+            {
+                // The X coordinate is used to indicate a tile within the packed mip region, rather than a logical region of a single subresource.
+                // The Y and Z coordinates must be zero.
+                Coord.X = 0;
+                Coord.Y = 0;
+                Coord.Z = 0;
+
+                Size.Width    = 0;
+                Size.Height   = 0;
+                Size.Depth    = 0;
+                Size.bUseBox  = FALSE;
+                Size.NumTiles = TexSparseProps.MipTailSize / D3D11_2_TILED_RESOURCE_TILE_SIZE_IN_BYTES;
+            }
 
             RangeFlags.emplace_back(pMemD3D11 ? D3D11_TILE_RANGE_FLAG(0) : D3D11_TILE_RANGE_NULL);
             StartOffsets.emplace_back(SrcRange.MemoryOffset / D3D11_2_TILED_RESOURCE_TILE_SIZE_IN_BYTES);

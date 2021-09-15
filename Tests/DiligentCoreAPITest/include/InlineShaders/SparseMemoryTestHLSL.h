@@ -53,8 +53,9 @@ void main(uint DTid : SV_DispatchThreadID)
 }
 )hlsl"};
 
+
 const std::string FillTexture_CS{R"hlsl(
-RWTexture2D<float4> g_DstTexture : register(u0);
+RWTexture2DArray<float4> g_DstTexture : register(u0);
 
 cbuffer CB
 {
@@ -65,6 +66,27 @@ cbuffer CB
 
 [numthreads(8, 8, 1)]
 void main(uint2 DTid : SV_DispatchThreadID)
+{
+    if (all(DTid < Size))
+    {
+        g_DstTexture[uint3(Offset + DTid, 0)] = Color;
+    }
+}
+)hlsl"};
+
+
+const std::string FillTexture3D_CS{R"hlsl(
+RWTexture3D<float4> g_DstTexture : register(u0);
+
+cbuffer CB
+{
+    uint3  Offset;
+    uint3  Size;
+    float4 Color;
+};
+
+[numthreads(4, 4, 4)]
+void main(uint3 DTid : SV_DispatchThreadID)
 {
     if (all(DTid < Size))
     {
@@ -123,21 +145,38 @@ struct PSInput
     float4 Pos : SV_POSITION;
 };
 
-Texture2D<float4> g_Texture;
+#if TEXTURE_2D_ARRAY
+    Texture2DArray<float4> g_Texture;
+#else
+    Texture2D<float4> g_Texture;
+#endif
 
 float4 main(in PSInput PSIn) : SV_Target
 {
-    int3 Coord     = int3(PSIn.Pos.x, PSIn.Pos.y, 0);
+    int4 Coord     = int4(PSIn.Pos.x, PSIn.Pos.y, 0, 0); // u, v, Layer, LOD
     int  MipHeight = SCREEN_HEIGHT / 2;
+
+#if TEXTURE_2D_ARRAY
+    int  TexWidth = SCREEN_WIDTH / 2;
+    if (PSIn.Pos.x > TexWidth)
+    {
+        Coord.x %= TexWidth;
+        Coord.z = PSIn.Pos.x / TexWidth;
+    }
+#endif
 
     while (Coord.y > MipHeight && MipHeight > 1)
     {
         Coord.y   -= MipHeight;
-        Coord.z   += 1;
+        Coord.w   += 1;
         MipHeight >>= 1;
     }
 
+#if TEXTURE_2D_ARRAY
     return g_Texture.Load(Coord);
+#else
+    return g_Texture.Load(Coord.xyw);
+#endif
 }
 )hlsl"};
 
@@ -148,22 +187,39 @@ struct PSInput
     float4 Pos : SV_POSITION;
 };
 
-Texture2D<float4> g_Texture;
+#if TEXTURE_2D_ARRAY
+    Texture2DArray<float4> g_Texture;
+#else
+    Texture2D<float4> g_Texture;
+#endif
 
 float4 main(in PSInput PSIn) : SV_Target
 {
-    int3 Coord     = int3(PSIn.Pos.x, PSIn.Pos.y, 0);
+    int4 Coord     = int4(PSIn.Pos.x, PSIn.Pos.y, 0, 0); // u, v, Layer, LOD
     int  MipHeight = SCREEN_HEIGHT / 2;
+
+#if TEXTURE_2D_ARRAY
+    int  TexWidth = SCREEN_WIDTH / 2;
+    if (PSIn.Pos.x > TexWidth)
+    {
+        Coord.x %= TexWidth;
+        Coord.z = PSIn.Pos.x / TexWidth;
+    }
+#endif
 
     while (Coord.y > MipHeight && MipHeight > 1)
     {
         Coord.y   -= MipHeight;
-        Coord.z   += 1;
+        Coord.w   += 1;
         MipHeight >>= 1;
     }
 
     uint Status;
+#if TEXTURE_2D_ARRAY
     float4 Color = g_Texture.Load(Coord, /*offset*/int2(0,0), Status);
+#else
+    float4 Color = g_Texture.Load(Coord.xyw, /*offset*/int2(0,0), Status);
+#endif
 
     if (!CheckAccessFullyMapped(Status))
         return float4(1.0, 0.0, 1.0, 1.0);
@@ -172,6 +228,36 @@ float4 main(in PSInput PSIn) : SV_Target
 }
 )hlsl"};
 
+
+const std::string SparseTexture3D_PS{R"hlsl(
+struct PSInput 
+{ 
+    float4 Pos : SV_POSITION;
+};
+
+Texture3D<float4> g_Texture;
+
+float4 main(in PSInput PSIn) : SV_Target
+{
+    int4 Coord     = int4(PSIn.Pos.x, PSIn.Pos.y, 0, 0); // u, v, w, LOD
+    int  MipHeight = SCREEN_HEIGHT / 8;
+    int  TexWidth  = SCREEN_WIDTH / 8;
+    if (PSIn.Pos.x > TexWidth)
+    {
+        Coord.x %= TexWidth;
+        Coord.z = PSIn.Pos.x / TexWidth;
+    }
+
+    while (Coord.y > MipHeight && MipHeight > 1)
+    {
+        Coord.y   -= MipHeight;
+        Coord.w   += 1;
+        MipHeight >>= 1;
+    }
+
+    return g_Texture.Load(Coord);
+}
+)hlsl"};
 
 } // namespace HLSL
 

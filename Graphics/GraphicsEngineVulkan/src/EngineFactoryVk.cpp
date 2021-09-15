@@ -423,31 +423,25 @@ GraphicsAdapterInfo GetPhysicalDeviceGraphicsAdapterInfo(const VulkanUtilities::
             BIND_INDIRECT_DRAW_ARGS |
             BIND_RAY_TRACING;
 
-        SparseMem.CapFlags =
-            SPARSE_MEMORY_CAP_FLAG_BUFFER |
-            SPARSE_MEMORY_CAP_FLAG_TEXTURE_2D |
-            SPARSE_MEMORY_CAP_FLAG_TEXTURE_3D |
-            SPARSE_MEMORY_CAP_FLAG_ALIASED;
-
         auto SetSparseMemoryCap = [&SparseMem](VkBool32 Feature, SPARSE_MEMORY_CAP_FLAGS Flag) {
             if (Feature != VK_FALSE)
                 SparseMem.CapFlags |= Flag;
         };
         // clang-format off
-        SetSparseMemoryCap(SparseProps.residencyStandard2DBlockShape,            SPARSE_MEMORY_CAP_FLAG_RESIDENCY_STANDARD_2D_BLOCK_SHAPE  );
-        SetSparseMemoryCap(SparseProps.residencyStandard2DMultisampleBlockShape, SPARSE_MEMORY_CAP_FLAG_RESIDENCY_STANDARD_2DMS_BLOCK_SHAPE);
-        SetSparseMemoryCap(SparseProps.residencyStandard3DBlockShape,            SPARSE_MEMORY_CAP_FLAG_RESIDENCY_STANDARD_3D_BLOCK_SHAPE  );
-        SetSparseMemoryCap(SparseProps.residencyAlignedMipSize,                  SPARSE_MEMORY_CAP_FLAG_RESIDENCY_ALIGNED_MIP_SIZE         );
-        SetSparseMemoryCap(SparseProps.residencyNonResidentStrict,               SPARSE_MEMORY_CAP_FLAG_RESIDENCY_NON_RESIDENT_STRICT      );
-        SetSparseMemoryCap(vkFeatures.shaderResourceResidency,                   SPARSE_MEMORY_CAP_FLAG_SHADER_RESOURCE_RESIDENCY          );
-        SetSparseMemoryCap(vkFeatures.sparseResidencyBuffer,                     SPARSE_MEMORY_CAP_FLAG_RESIDENCY_BUFFER                   );
-        SetSparseMemoryCap(vkFeatures.sparseResidencyImage2D,                    SPARSE_MEMORY_CAP_FLAG_RESIDENCY_TEXTURE_2D               );
-        SetSparseMemoryCap(vkFeatures.sparseResidencyImage3D,                    SPARSE_MEMORY_CAP_FLAG_RESIDENCY_TEXTURE_3D               );
-        SetSparseMemoryCap(vkFeatures.sparseResidency2Samples,                   SPARSE_MEMORY_CAP_FLAG_RESIDENCY_TEXTURE_2_SAMPLES        );
-        SetSparseMemoryCap(vkFeatures.sparseResidency4Samples,                   SPARSE_MEMORY_CAP_FLAG_RESIDENCY_TEXTURE_4_SAMPLES        );
-        SetSparseMemoryCap(vkFeatures.sparseResidency8Samples,                   SPARSE_MEMORY_CAP_FLAG_RESIDENCY_TEXTURE_8_SAMPLES        );
-        SetSparseMemoryCap(vkFeatures.sparseResidency16Samples,                  SPARSE_MEMORY_CAP_FLAG_RESIDENCY_TEXTURE_16_SAMPLES       );
-        SetSparseMemoryCap(vkFeatures.sparseResidencyAliased,                    SPARSE_MEMORY_CAP_FLAG_RESIDENCY_ALIASED                  );
+        SetSparseMemoryCap(SparseProps.residencyStandard2DBlockShape,            SPARSE_MEMORY_CAP_FLAG_STANDARD_2D_BLOCK_SHAPE  );
+        SetSparseMemoryCap(SparseProps.residencyStandard2DMultisampleBlockShape, SPARSE_MEMORY_CAP_FLAG_STANDARD_2DMS_BLOCK_SHAPE);
+        SetSparseMemoryCap(SparseProps.residencyStandard3DBlockShape,            SPARSE_MEMORY_CAP_FLAG_STANDARD_3D_BLOCK_SHAPE  );
+        SetSparseMemoryCap(SparseProps.residencyAlignedMipSize,                  SPARSE_MEMORY_CAP_FLAG_ALIGNED_MIP_SIZE         );
+        SetSparseMemoryCap(SparseProps.residencyNonResidentStrict,               SPARSE_MEMORY_CAP_FLAG_NON_RESIDENT_STRICT      );
+        SetSparseMemoryCap(vkFeatures.shaderResourceResidency,                   SPARSE_MEMORY_CAP_FLAG_SHADER_RESOURCE_RESIDENCY);
+        SetSparseMemoryCap(vkFeatures.sparseResidencyBuffer,                     SPARSE_MEMORY_CAP_FLAG_BUFFER                   );
+        SetSparseMemoryCap(vkFeatures.sparseResidencyImage2D,                    SPARSE_MEMORY_CAP_FLAG_TEXTURE_2D | SPARSE_MEMORY_CAP_FLAG_TEXTURE_2D_ARRAY_MIP_TAIL);
+        SetSparseMemoryCap(vkFeatures.sparseResidencyImage3D,                    SPARSE_MEMORY_CAP_FLAG_TEXTURE_3D               );
+        SetSparseMemoryCap(vkFeatures.sparseResidency2Samples,                   SPARSE_MEMORY_CAP_FLAG_TEXTURE_2_SAMPLES        );
+        SetSparseMemoryCap(vkFeatures.sparseResidency4Samples,                   SPARSE_MEMORY_CAP_FLAG_TEXTURE_4_SAMPLES        );
+        SetSparseMemoryCap(vkFeatures.sparseResidency8Samples,                   SPARSE_MEMORY_CAP_FLAG_TEXTURE_8_SAMPLES        );
+        SetSparseMemoryCap(vkFeatures.sparseResidency16Samples,                  SPARSE_MEMORY_CAP_FLAG_TEXTURE_16_SAMPLES       );
+        SetSparseMemoryCap(vkFeatures.sparseResidencyAliased,                    SPARSE_MEMORY_CAP_FLAG_ALIASED                  );
         // clang-format on
     }
 
@@ -757,6 +751,7 @@ void EngineFactoryVkImpl::CreateDeviceAndContextsVk(const EngineVkCreateInfo& En
             vkEnabledFeatures.sparseResidencyBuffer    = vkDeviceFeatures.sparseResidencyBuffer;
             vkEnabledFeatures.sparseResidencyImage2D   = vkDeviceFeatures.sparseResidencyImage2D;
             vkEnabledFeatures.sparseResidencyImage3D   = vkDeviceFeatures.sparseResidencyImage3D;
+            vkEnabledFeatures.shaderResourceResidency  = vkDeviceFeatures.shaderResourceResidency;
         }
 
         using ExtensionFeatures                    = VulkanUtilities::VulkanPhysicalDevice::ExtensionFeatures;

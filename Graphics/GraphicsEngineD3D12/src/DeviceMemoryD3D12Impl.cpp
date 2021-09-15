@@ -61,9 +61,9 @@ Bool DeviceMemoryD3D12Impl::Resize(Uint64 NewSize)
 
     D3D12_HEAP_DESC d3d12HeapDesc{};
     d3d12HeapDesc.SizeInBytes                     = m_Desc.PageSize;
-    d3d12HeapDesc.Properties.Type                 = D3D12_HEAP_TYPE_DEFAULT;
-    d3d12HeapDesc.Properties.CPUPageProperty      = D3D12_CPU_PAGE_PROPERTY_UNKNOWN;
-    d3d12HeapDesc.Properties.MemoryPoolPreference = D3D12_MEMORY_POOL_UNKNOWN;
+    d3d12HeapDesc.Properties.Type                 = D3D12_HEAP_TYPE_CUSTOM;
+    d3d12HeapDesc.Properties.CPUPageProperty      = D3D12_CPU_PAGE_PROPERTY_NOT_AVAILABLE;
+    d3d12HeapDesc.Properties.MemoryPoolPreference = m_pDevice->GetAdapterInfo().Type == ADAPTER_TYPE_DISCRETE ? D3D12_MEMORY_POOL_L1 : D3D12_MEMORY_POOL_L0;
     d3d12HeapDesc.Properties.CreationNodeMask     = 0;                                          // equivalent to 1
     d3d12HeapDesc.Properties.VisibleNodeMask      = 0;                                          // equivalent to 1
     d3d12HeapDesc.Alignment                       = D3D12_DEFAULT_RESOURCE_PLACEMENT_ALIGNMENT; // AZ TODO: D3D12_DEFAULT_MSAA_RESOURCE_PLACEMENT_ALIGNMENT
