@@ -92,6 +92,8 @@ Texture2D_D3D11::Texture2D_D3D11(IReferenceCounters*        pRefCounters,
     CHECK_D3D_RESULT_THROW(hr, "Failed to create the Direct3D11 Texture2D");
     m_pd3d11Texture = std::move(ptex2D);
 
+    // AZ TODO: NvAPI_D3D11_CreateTiledTexture2DArray to use packed mip tail
+
     if (*m_Desc.Name != 0)
     {
         hr = m_pd3d11Texture->SetPrivateData(WKPDID_D3DDebugObjectName, static_cast<UINT>(strlen(m_Desc.Name)), m_Desc.Name);
@@ -137,6 +139,15 @@ public:
         TexDesc.CPUAccessFlags = D3D11CPUAccessFlagsToCPUAccessFlags(D3D11TexDesc.CPUAccessFlags);
         TexDesc.MiscFlags      = D3D11MiscFlagsToMiscTextureFlags(D3D11TexDesc.MiscFlags);
 
+        if (D3D11TexDesc.MiscFlags & D3D11_RESOURCE_MISC_TILED)
+        {
+            VERIFY_EXPR(TexDesc.Usage == USAGE_DEFAULT);
+            TexDesc.Usage = USAGE_SPARSE;
+
+            // In Direct3D11 sparse resources is always resident and aliased
+            TexDesc.MiscFlags |= MISC_TEXTURE_FLAG_SPARSE_ALIASING;
+        }
+
         return TexDesc;
     }
 
@@ -164,6 +175,9 @@ Texture2D_D3D11::Texture2D_D3D11(IReferenceCounters*        pRefCounters,
 {
     m_pd3d11Texture = pd3d11Texture;
     SetState(InitialState);
+
+    if (m_Desc.Usage == USAGE_SPARSE)
+        InitSparseProperties();
 }
 
 Texture2D_D3D11::~Texture2D_D3D11()

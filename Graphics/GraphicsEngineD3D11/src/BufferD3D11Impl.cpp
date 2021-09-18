@@ -85,9 +85,6 @@ BufferD3D11Impl::BufferD3D11Impl(IReferenceCounters*        pRefCounters,
     if (m_Desc.Usage == USAGE_SPARSE)
     {
         D3D11BuffDesc.MiscFlags |= D3D11_RESOURCE_MISC_TILED;
-
-        // In Direct3D11 sparse resources is always resident and aliased
-        m_Desc.SparseFlags |= SPARSE_RESOURCE_FLAG_ALIASED;
     }
     D3D11BuffDesc.Usage = UsageToD3D11Usage(m_Desc.Usage);
 
@@ -157,6 +154,14 @@ static BufferDesc BuffDescFromD3D11Buffer(ID3D11Buffer* pd3d11Buffer, BufferDesc
     BuffDesc.BindFlags = BindFlags;
 
     auto Usage = D3D11UsageToUsage(D3D11BuffDesc.Usage);
+    if (D3D11BuffDesc.MiscFlags & D3D11_RESOURCE_MISC_TILED)
+    {
+        VERIFY_EXPR(Usage == USAGE_DEFAULT);
+        Usage = USAGE_SPARSE;
+
+        // In Direct3D11 sparse resources is always resident and aliased
+        BuffDesc.MiscFlags |= MISC_BUFFER_FLAG_SPARSE_ALIASING;
+    }
     VERIFY(BuffDesc.Usage == 0 || BuffDesc.Usage == Usage,
            "Usage specified by the BufferDesc (", GetUsageString(BuffDesc.Usage),
            ") does not match the buffer usage recovered from d3d11 buffer desc (", GetUsageString(Usage), ")");

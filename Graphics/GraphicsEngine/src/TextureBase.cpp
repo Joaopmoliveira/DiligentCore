@@ -244,26 +244,26 @@ void ValidateTextureDesc(const TextureDesc& Desc, const IRenderDevice* pDevice) 
     {
         VERIFY_TEXTURE(pDevice->GetDeviceInfo().Features.SparseMemory, "sparse texture requires SparseMemory feature");
 
-        const auto& SparseProps = pDevice->GetAdapterInfo().SparseMemory;
+        const auto& SparseMem = pDevice->GetAdapterInfo().SparseMemory;
 
-        if ((Desc.SparseFlags & SPARSE_RESOURCE_FLAG_ALIASED) != 0)
-            VERIFY_TEXTURE(SparseProps.CapFlags & SPARSE_MEMORY_CAP_FLAG_ALIASED, "SPARSE_RESOURCE_FLAG_ALIASED flag requires SPARSE_MEMORY_CAP_FLAG_ALIASED capability");
+        if ((Desc.MiscFlags & MISC_TEXTURE_FLAG_SPARSE_ALIASING) != 0)
+            VERIFY_TEXTURE(SparseMem.CapFlags & SPARSE_MEMORY_CAP_FLAG_ALIASED, "SPARSE_RESOURCE_FLAG_ALIASED flag requires SPARSE_MEMORY_CAP_FLAG_ALIASED capability");
 
         static_assert(RESOURCE_DIM_NUM_DIMENSIONS == 9, "Please update the switch below to handle the new resource dimension type");
         switch (Desc.Type)
         {
             case RESOURCE_DIM_TEX_2D:
-                VERIFY_TEXTURE(SparseProps.CapFlags & SPARSE_MEMORY_CAP_FLAG_TEXTURE_2D,
+                VERIFY_TEXTURE(SparseMem.CapFlags & SPARSE_MEMORY_CAP_FLAG_TEXTURE_2D,
                                "2D texture requires SPARSE_MEMORY_CAP_FLAG_TEXTURE_2D capability");
                 break;
 
             case RESOURCE_DIM_TEX_2D_ARRAY:
             case RESOURCE_DIM_TEX_CUBE:
             case RESOURCE_DIM_TEX_CUBE_ARRAY:
-                VERIFY_TEXTURE(SparseProps.CapFlags & SPARSE_MEMORY_CAP_FLAG_TEXTURE_2D,
+                VERIFY_TEXTURE(SparseMem.CapFlags & SPARSE_MEMORY_CAP_FLAG_TEXTURE_2D,
                                "2D array or Cube sparse textures requires SPARSE_MEMORY_CAP_FLAG_TEXTURE_2D capability");
 
-                if ((SparseProps.CapFlags & SPARSE_MEMORY_CAP_FLAG_TEXTURE_2D_ARRAY_MIP_TAIL) == 0)
+                if ((SparseMem.CapFlags & SPARSE_MEMORY_CAP_FLAG_TEXTURE_2D_ARRAY_MIP_TAIL) == 0)
                 {
                     const auto  Props = GetTextureSparsePropertiesForStandardBlocks(Desc);
                     const uint2 MipSize{std::max(1u, Desc.Width >> Desc.MipLevels),
@@ -276,7 +276,7 @@ void ValidateTextureDesc(const TextureDesc& Desc, const IRenderDevice* pDevice) 
                 break;
 
             case RESOURCE_DIM_TEX_3D:
-                VERIFY_TEXTURE(SparseProps.CapFlags & SPARSE_MEMORY_CAP_FLAG_TEXTURE_3D,
+                VERIFY_TEXTURE(SparseMem.CapFlags & SPARSE_MEMORY_CAP_FLAG_TEXTURE_3D,
                                "3D sparse texture requires SPARSE_MEMORY_CAP_FLAG_TEXTURE_3D capability");
                 break;
 
@@ -288,8 +288,8 @@ void ValidateTextureDesc(const TextureDesc& Desc, const IRenderDevice* pDevice) 
     }
     else
     {
-        VERIFY_TEXTURE(Desc.SparseFlags == SPARSE_RESOURCE_FLAG_NONE,
-                       "SparseFlags must be SPARSE_RESOURCE_FLAG_NONE if usege is not USAGE_SPARSE");
+        VERIFY_TEXTURE((Desc.MiscFlags & MISC_TEXTURE_FLAG_SPARSE_ALIASING) == 0,
+                       "MiscFlags must not have MISC_TEXTURE_FLAG_SPARSE_ALIASING if usege is not USAGE_SPARSE");
     }
 }
 
@@ -743,44 +743,7 @@ TextureSparseProperties GetTextureSparsePropertiesForStandardBlocks(const Textur
         (Props.TileSize[1] / FmtAttribs.BlockHeight) *
         Props.TileSize[2] * TexDesc.SampleCount * BytesPerBlock;
     VERIFY_EXPR(BytesPerTile == SparseBlockSize);
-    /*
-    const auto TexDepth  = TexDesc.Type == RESOURCE_DIM_TEX_3D ? TexDesc.Depth : 1u;
-    const auto ArraySize = TexDesc.Type == RESOURCE_DIM_TEX_3D ? 1u : TexDesc.ArraySize;
 
-    Uint64 SliceSize = 0;
-    bool   IsMipTail = false;
-    for (Uint32 Mip = 0; Mip < TexDesc.MipLevels; ++Mip)
-    {
-        const auto Width  = std::max(1u, TexDesc.Width >> Mip);
-        const auto Height = std::max(1u, TexDesc.Height >> Mip);
-        const auto Depth  = std::max(1u, TexDepth >> Mip);
-
-        if (!IsMipTail && Width < Props.TileSize[0] && Height < Props.TileSize[1] && (Depth == 1 || Depth < Props.TileSize[2]))
-        {
-            Props.FirstMipInTail = Mip;
-            Props.MipTailOffset  = SliceSize;
-            IsMipTail            = true;
-        }
-
-        if (IsMipTail)
-        {
-            Props.MipTailSize += Width * Height * Depth * BytesPerBlock;
-        }
-        else
-        {
-            const auto XTiles = (Width + Props.TileSize[0] - 1) / Props.TileSize[0];
-            const auto YTiles = (Height + Props.TileSize[1] - 1) / Props.TileSize[1];
-            const auto ZTiles = (Depth + Props.TileSize[2] - 1) / Props.TileSize[2];
-            SliceSize += (XTiles * YTiles * ZTiles) * SparseBlockSize;
-        }
-    }
-
-    Props.MipTailSize     = AlignUp(Props.MipTailSize, SparseBlockSize);
-    Props.MipTailStride   = SliceSize + Props.MipTailSize;
-    Props.MemorySize      = Props.MipTailStride * ArraySize;
-    Props.MemoryAlignment = SparseBlockSize;
-    Props.Flags           = SPARSE_TEXTURE_FLAG_NONE;
-    */
     return Props;
 }
 

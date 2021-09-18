@@ -24,35 +24,36 @@
  *  of the possibility of such damages.
  */
 
-#include "DeviceMemoryBase.hpp"
+#include "Metal/TestingEnvironmentMtl.hpp"
+#include "Metal/TestingSwapChainMtl.hpp"
+
+#include "DeviceContextMtl.h"
+#include "TextureViewMtl.h"
+
+#include "SparseMemoryTest.hpp"
 
 namespace Diligent
 {
 
-#define LOG_DEVMEMORY_ERROR_AND_THROW(...) LOG_ERROR_AND_THROW("Description of device memory '", (Desc.Name ? Desc.Name : ""), "' is invalid: ", ##__VA_ARGS__)
-#define VERIFY_DEVMEMORY(Expr, ...)                     \
-    do                                                  \
-    {                                                   \
-        if (!(Expr))                                    \
-        {                                               \
-            LOG_DEVMEMORY_ERROR_AND_THROW(__VA_ARGS__); \
-        }                                               \
-    } while (false)
-
-
-void ValidateDeviceMemoryDesc(const DeviceMemoryDesc& Desc, const IRenderDevice* pDevice) noexcept(false)
+namespace Testing
 {
-    VERIFY_DEVMEMORY(Desc.Type == DEVICE_MEMORY_TYPE_SPARSE,
-                     "type must be DEVICE_MEMORY_TYPE_SPARSE");
 
-    const auto& SparseMem = pDevice->GetAdapterInfo().SparseMemory;
-
-    VERIFY_DEVMEMORY(Desc.PageSize != 0, "page size must not be zero");
-
-    // May be false error in very rarely case when resource have custom memory alignment
-    // which is not multiple of StandardBlockSize.
-    VERIFY_DEVMEMORY(Desc.PageSize % SparseMem.StandardBlockSize == 0,
-                     "page size (", Desc.PageSize, ") must be multiple of sparse block size (", SparseMem.StandardBlockSize, ")");
+void SparseMemorySparseTextureTestMtl(const SparseMemoryTestTextureHelper& Helper)
+{
 }
+
+void SparseMemorySparseResidencyTextureTestMtl(const SparseMemoryTestTextureHelper& Helper)
+{
+}
+
+void SparseMemorySparseResidencyAliasedTextureTestMtl(const SparseMemoryTestTextureHelper& Helper)
+{
+}
+
+void SparseMemorySparseTexture3DTestMtl(const SparseMemoryTestTextureHelper& Helper)
+{
+}
+
+} // namespace Testing
 
 } // namespace Diligent

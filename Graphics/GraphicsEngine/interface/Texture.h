@@ -43,6 +43,30 @@ DILIGENT_BEGIN_NAMESPACE(Diligent)
 static const INTERFACE_ID IID_Texture =
     {0xa64b0e60, 0x1b5e, 0x4cfd,{0xb8, 0x80, 0x66, 0x3a, 0x1a, 0xdc, 0xbe, 0x98}};
 
+/// Miscellaneous texture flags
+
+/// The enumeration is used by TextureDesc to describe misc texture flags
+DILIGENT_TYPED_ENUM(MISC_TEXTURE_FLAGS, Uint8)
+{
+    MISC_TEXTURE_FLAG_NONE          = 0,
+
+    /// Allow automatic mipmap generation with ITextureView::GenerateMips()
+
+    /// \note A texture must be created with BIND_RENDER_TARGET bind flag
+    MISC_TEXTURE_FLAG_GENERATE_MIPS = 1u << 0,
+
+    /// The texture will be used as a transient framebuffer attachment.
+
+    /// \note Memoryless textures must only be used within a render passes in a framebuffer,
+    ///       load operation must be CLEAR or DISCARD, store operation must be DISCARD.
+    MISC_TEXTURE_FLAG_MEMORYLESS    = 1u << 1,
+
+    /// For sparse texture allow to bind same memory range in different texture regions
+    /// or in different sparse textures.
+    MISC_TEXTURE_FLAG_SPARSE_ALIASING = 1u << 2,
+};
+DEFINE_FLAG_ENUM_OPERATORS(MISC_TEXTURE_FLAGS)
+
 /// Texture description
 struct TextureDesc DILIGENT_DERIVE(DeviceObjectAttribs)
 
@@ -89,9 +113,6 @@ struct TextureDesc DILIGENT_DERIVE(DeviceObjectAttribs)
 
     /// Miscellaneous flags, see Diligent::MISC_TEXTURE_FLAGS for details.
     MISC_TEXTURE_FLAGS MiscFlags        DEFAULT_INITIALIZER(MISC_TEXTURE_FLAG_NONE);
-    
-    /// Texture sparse flags, see Diligent::SPARSE_RESOURCE_FLAGS
-    SPARSE_RESOURCE_FLAGS SparseFlags   DEFAULT_INITIALIZER(SPARSE_RESOURCE_FLAG_NONE);
 
     /// Optimized clear value
     OptimizedClearValue ClearValue;
@@ -344,7 +365,8 @@ struct TextureSparseProperties
     Uint64  MipTailStride   DEFAULT_INITIALIZER(0);
 
     /// Specifies the mip tail size in bytes.
-    Uint32  MipTailSize     DEFAULT_INITIALIZER(0);
+    /// \note Single mip tail for 2D array may exeed the 32bit limit.
+    Uint64  MipTailSize     DEFAULT_INITIALIZER(0);
 
     /// This mip level with a subsequent mips packed into a single memory block.
     Uint32  FirstMipInTail  DEFAULT_INITIALIZER(0);
@@ -352,9 +374,11 @@ struct TextureSparseProperties
     /// Specifies a tile dimension for a single sparse block, see SparseMemoryProperties::SparseBlockSize.
     Uint32  TileSize[3]     DEFAULT_INITIALIZER({});
 
-    /// Required alignment for memory offset in sparse memory binding command,
-    /// see SparseTextureMemoryBindRange::MemoryOffset.
-    Uint32  MemoryAlignment DEFAULT_INITIALIZER(0);
+    /// Required alignment for memory offset and size in sparse memory binding command,
+    /// see SparseTextureMemoryBindRange.
+    /// This value equals to sparse block size, if Flags does not contains SPARSE_TEXTURE_FLAG_NONSTANDARD_BLOCK_SIZE
+    /// then it equals to SparseMemoryProperties::StandardBlockSize.
+    Uint32  MemoryAlignment DEFAULT_INITIALIZER(0); // AZ TODO: rename to BlockSize ?
 
     /// Flags which describes additional packing modes.
     SPARSE_TEXTURE_FLAGS Flags DEFAULT_INITIALIZER(SPARSE_TEXTURE_FLAG_NONE);

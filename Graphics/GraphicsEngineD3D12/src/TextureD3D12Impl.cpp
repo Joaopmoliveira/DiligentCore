@@ -186,11 +186,9 @@ TextureD3D12Impl::TextureD3D12Impl(IReferenceCounters*        pRefCounters,
     auto* pd3d12Device = pRenderDeviceD3D12->GetD3D12Device();
     if (m_Desc.Usage == USAGE_SPARSE)
     {
-        // In Direct3D12 sparse resources is always resident and aliased
-        m_Desc.SparseFlags |= SPARSE_RESOURCE_FLAG_ALIASED;
-
         d3d12TexDesc.Layout = D3D12_TEXTURE_LAYOUT_64KB_UNDEFINED_SWIZZLE;
 
+        // AZ TODO: use NvAPI_D3D12_CreateReservedResource for packed mip tail in 2D Array
         auto hr = pd3d12Device->CreateReservedResource(&d3d12TexDesc, D3D12_RESOURCE_STATE_COMMON, pClearValue, __uuidof(m_pd3d12Resource),
                                                        reinterpret_cast<void**>(static_cast<ID3D12Resource**>(&m_pd3d12Resource)));
         if (FAILED(hr))
@@ -458,6 +456,13 @@ static TextureDesc InitTexDescFromD3D12Resource(ID3D12Resource* pTexture, const 
         }
     }
 
+    if (ResourceDesc.Layout == D3D12_TEXTURE_LAYOUT_64KB_UNDEFINED_SWIZZLE ||
+        ResourceDesc.Layout == D3D12_TEXTURE_LAYOUT_64KB_STANDARD_SWIZZLE)
+    {
+        TexDesc.Usage = USAGE_SPARSE;
+        TexDesc.MiscFlags |= MISC_TEXTURE_FLAG_SPARSE_ALIASING;
+    }
+
     return TexDesc;
 }
 
@@ -471,6 +476,9 @@ TextureD3D12Impl::TextureD3D12Impl(IReferenceCounters*        pRefCounters,
 {
     m_pd3d12Resource = pTexture;
     SetState(InitialState);
+
+    if (m_Desc.Usage == USAGE_SPARSE)
+        InitSparseProperties();
 }
 
 void TextureD3D12Impl::CreateViewInternal(const struct TextureViewDesc& ViewDesc, ITextureView** ppView, bool bIsDefaultView)
@@ -681,7 +689,6 @@ void TextureD3D12Impl::InitSparseProperties()
     Props.MemorySize      = NumTilesForEntireResource * D3D12_TILED_RESOURCE_TILE_SIZE_IN_BYTES;
     Props.MemoryAlignment = D3D12_TILED_RESOURCE_TILE_SIZE_IN_BYTES;
     Props.MipTailOffset   = PackedMipDesc.StartTileIndexInOverallResource * D3D12_TILED_RESOURCE_TILE_SIZE_IN_BYTES;
-    Props.MipTailStride   = (Uint32{PackedMipDesc.NumPackedMips} + PackedMipDesc.NumStandardMips) * D3D12_TILED_RESOURCE_TILE_SIZE_IN_BYTES;
     Props.MipTailSize     = PackedMipDesc.NumTilesForPackedMips * D3D12_TILED_RESOURCE_TILE_SIZE_IN_BYTES;
     Props.FirstMipInTail  = PackedMipDesc.NumStandardMips;
     Props.TileSize[0]     = StandardTileShapeForNonPackedMips.WidthInTexels;
@@ -689,8 +696,8 @@ void TextureD3D12Impl::InitSparseProperties()
     Props.TileSize[2]     = StandardTileShapeForNonPackedMips.DepthInTexels;
     Props.Flags           = SPARSE_TEXTURE_FLAG_NONE;
 
-    if (m_Desc.Type != RESOURCE_DIM_TEX_3D && m_Desc.ArraySize > 1)
-        VERIFY_EXPR(Props.MipTailStride * m_Desc.ArraySize == Props.MemorySize);
+    // The number of overall tiles, packed or not, for a given array slice is simply the total number of tiles for the resource divided by the resource's array size
+    Props.MipTailStride = m_Desc.IsArray() ? (NumTilesForEntireResource / m_Desc.ArraySize) * D3D12_TILED_RESOURCE_TILE_SIZE_IN_BYTES : 0;
 }
 
 } // namespace Diligent

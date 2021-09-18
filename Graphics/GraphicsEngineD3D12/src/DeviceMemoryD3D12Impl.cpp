@@ -73,6 +73,7 @@ Bool DeviceMemoryD3D12Impl::Resize(Uint64 NewSize)
 
     for (size_t i = OldPageCount; i < NewPageCount; ++i)
     {
+        // AZ TODO: NvAPI_D3D12_CreateHeap
         CComPtr<ID3D12Heap> pd3d12Heap;
         if (FAILED(pd3d12Device->CreateHeap(&d3d12HeapDesc, IID_PPV_ARGS(&pd3d12Heap))))
             return false;

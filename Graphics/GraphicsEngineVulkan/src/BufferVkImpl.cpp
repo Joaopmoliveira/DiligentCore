@@ -191,7 +191,10 @@ BufferVkImpl::BufferVkImpl(IReferenceCounters*        pRefCounters,
 
     if (m_Desc.Usage == USAGE_SPARSE)
     {
-        VkBuffCI.flags = SparseResFlagsToVkBufferCreateFlags(m_Desc.SparseFlags);
+        VkBuffCI.flags =
+            VK_BUFFER_CREATE_SPARSE_BINDING_BIT |
+            VK_BUFFER_CREATE_SPARSE_RESIDENCY_BIT |
+            (m_Desc.MiscFlags & MISC_BUFFER_FLAG_SPARSE_ALIASING ? VK_BUFFER_CREATE_SPARSE_ALIASED_BIT : 0);
 
         m_VulkanBuffer = LogicalDevice.CreateBuffer(VkBuffCI, m_Desc.Name);
 

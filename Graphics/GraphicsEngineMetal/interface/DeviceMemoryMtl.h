@@ -33,7 +33,7 @@ DILIGENT_BEGIN_NAMESPACE(Diligent)
 
 // {FAA1CD77-590A-408B-B0E8-C21CD062542C}
 static const INTERFACE_ID IID_DeviceMemoryMtl =
-    {0xfaa1cd77, 0x590a, 0x408b, {0xb0, 0xe8, 0xc2, 0x1c, 0xd0, 0x62, 0x54, 0x2c)};
+    {0xfaa1cd77, 0x590a, 0x408b, {0xb0, 0xe8, 0xc2, 0x1c, 0xd0, 0x62, 0x54, 0x2c}};
 
 #define DILIGENT_INTERFACE_NAME IDeviceMemoryMtl
 #include "../../../Primitives/interface/DefineInterfaceHelperMacros.h"

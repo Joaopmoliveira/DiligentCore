@@ -2019,38 +2019,6 @@ DeviceFeatures VkFeaturesToDeviceFeatures(uint32_t                              
     return Features;
 }
 
-VkBufferCreateFlags SparseResFlagsToVkBufferCreateFlags(SPARSE_RESOURCE_FLAGS Flags)
-{
-    static_assert(SPARSE_RESOURCE_FLAG_LAST == (1u << 0), "This function must be updated to handle new sparse resource flag");
-    VkBufferCreateFlags Result = VK_BUFFER_CREATE_SPARSE_BINDING_BIT | VK_BUFFER_CREATE_SPARSE_RESIDENCY_BIT;
-    while (Flags != 0)
-    {
-        auto FlagBit = ExtractLSB(Flags);
-        switch (FlagBit)
-        {
-            case SPARSE_RESOURCE_FLAG_ALIASED: Result |= VK_BUFFER_CREATE_SPARSE_ALIASED_BIT; break;
-            default: UNEXPECTED("Unexpected sparse resource flag");
-        }
-    }
-    return Result;
-}
-
-VkImageCreateFlags SparseResFlagsToVkImageCreateFlags(SPARSE_RESOURCE_FLAGS Flags)
-{
-    static_assert(SPARSE_RESOURCE_FLAG_LAST == (1u << 0), "This function must be updated to handle new sparse resource flag");
-    VkImageCreateFlags Result = VK_IMAGE_CREATE_SPARSE_BINDING_BIT | VK_IMAGE_CREATE_SPARSE_RESIDENCY_BIT;
-    while (Flags != 0)
-    {
-        auto FlagBit = ExtractLSB(Flags);
-        switch (FlagBit)
-        {
-            case SPARSE_RESOURCE_FLAG_ALIASED: Result |= VK_IMAGE_CREATE_SPARSE_ALIASED_BIT; break;
-            default: UNEXPECTED("Unexpected sparse resource flag");
-        }
-    }
-    return Result;
-}
-
 SPARSE_TEXTURE_FLAGS VkSparseImageFormatFlagsToSparseTextureFlags(VkSparseImageFormatFlags Flags)
 {
     SPARSE_TEXTURE_FLAGS Result = SPARSE_TEXTURE_FLAG_NONE;
@@ -2068,6 +2036,46 @@ SPARSE_TEXTURE_FLAGS VkSparseImageFormatFlagsToSparseTextureFlags(VkSparseImageF
             default:
                 UNEXPECTED("Unexpected sparse image format flag");
         }
+    }
+    return Result;
+}
+
+VkImageUsageFlags BindFlagsToVkImageUsage(BIND_FLAGS Flags, bool IsMemoryless, bool FragDensityMapInsteadOfShadingRate)
+{
+    VkImageUsageFlags Result = VK_IMAGE_USAGE_TRANSFER_SRC_BIT | VK_IMAGE_USAGE_TRANSFER_DST_BIT;
+    while (Flags != BIND_NONE)
+    {
+        auto FlagBit = ExtractLSB(Flags);
+        static_assert(BIND_FLAGS_LAST == (1u << 11), "This function must be updated to handle new bind flag");
+        switch (FlagBit)
+        {
+            case BIND_RENDER_TARGET:
+                Result |= VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT | VK_IMAGE_USAGE_TRANSFER_DST_BIT;
+                break;
+            case BIND_DEPTH_STENCIL:
+                // VK_IMAGE_USAGE_TRANSFER_DST_BIT is required for vkCmdClearDepthStencilImage()
+                Result |= VK_IMAGE_USAGE_DEPTH_STENCIL_ATTACHMENT_BIT | VK_IMAGE_USAGE_TRANSFER_DST_BIT;
+                break;
+            case BIND_UNORDERED_ACCESS:
+                Result |= VK_IMAGE_USAGE_STORAGE_BIT;
+                break;
+            case BIND_SHADER_RESOURCE:
+                Result |= VK_IMAGE_USAGE_SAMPLED_BIT;
+                break;
+            case BIND_INPUT_ATTACHMENT:
+                Result |= VK_IMAGE_USAGE_INPUT_ATTACHMENT_BIT;
+                break;
+            case BIND_SHADING_RATE:
+                Result |= (FragDensityMapInsteadOfShadingRate ? VK_IMAGE_USAGE_FRAGMENT_DENSITY_MAP_BIT_EXT : VK_IMAGE_USAGE_FRAGMENT_SHADING_RATE_ATTACHMENT_BIT_KHR);
+                break;
+            default:
+                UNEXPECTED("Unexpected bind flag");
+        }
+    }
+    if (IsMemoryless)
+    {
+        Result &= (VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT | VK_IMAGE_USAGE_DEPTH_STENCIL_ATTACHMENT_BIT | VK_IMAGE_USAGE_INPUT_ATTACHMENT_BIT);
+        Result |= VK_IMAGE_USAGE_TRANSIENT_ATTACHMENT_BIT;
     }
     return Result;
 }

@@ -1008,26 +1008,6 @@ DILIGENT_TYPED_ENUM(COMPARISON_FUNCTION, Uint8)
     COMPARISON_FUNC_NUM_FUNCTIONS
 };
 
-/// Miscellaneous texture flags
-
-/// The enumeration is used by TextureDesc to describe misc texture flags
-DILIGENT_TYPED_ENUM(MISC_TEXTURE_FLAGS, Uint8)
-{
-    MISC_TEXTURE_FLAG_NONE          = 0x00,
-
-    /// Allow automatic mipmap generation with ITextureView::GenerateMips()
-
-    /// \note A texture must be created with BIND_RENDER_TARGET bind flag
-    MISC_TEXTURE_FLAG_GENERATE_MIPS = 0x01,
-
-    /// The texture will be used as a transient framebuffer attachment.
-
-    /// \note Memoryless textures must only be used within a render passes in a framebuffer,
-    ///       load operation must be CLEAR or DISCARD, store operation must be DISCARD.
-    MISC_TEXTURE_FLAG_MEMORYLESS    = 0x02,
-};
-DEFINE_FLAG_ENUM_OPERATORS(MISC_TEXTURE_FLAGS)
-
 /// Input primitive topology.
 
 /// This enumeration is used by GraphicsPipelineDesc structure to define input primitive topology.
@@ -1969,6 +1949,9 @@ struct TextureProperties
 
     /// Indicates if device supports cubemap arrays
     Bool CubemapArraysSupported    DEFAULT_INITIALIZER(False);
+
+    /// Indicates if device supports 2D views from 3D texture.
+    Bool TextureView2DOn3DSupported DEFAULT_INITIALIZER(False);
 };
 typedef struct TextureProperties TextureProperties;
 
@@ -2655,6 +2638,10 @@ DILIGENT_TYPED_ENUM(SPARSE_MEMORY_CAP_FLAGS, Uint32)
 
     /// Direct3D11 & 12 does not support sparse texture array with mip levels which dimension is less than tile size.
     SPARSE_MEMORY_CAP_FLAG_TEXTURE_2D_ARRAY_MIP_TAIL = 1U << 14,
+        
+    /// Indicates that sparse buffer uses standard block, see SparseMemoryProperties::StandardBlockSize.
+    /// If this capability is not reported, call IBuffer::GetSparseProperties() and check BufferSparseProperties::MemoryAlignment.
+    SPARSE_MEMORY_CAP_FLAG_BUFFER_STANDARD_BLOCK     = 1U << 15, // AZ TODO: specified only in DX backend and can be removed
 
     //SPARSE_MEMORY_CAP_FLAG_TEXTURE_INT64_ATOMICS               = 1u << 18, // AZ TODO
 };
@@ -2672,8 +2659,13 @@ struct SparseMemoryProperties
     /// The total amount of address space available, in bytes, for a single resource.
     Uint64 ResourceSpaceSize DEFAULT_INITIALIZER(0);
     
-    /// Size of sparse memory block in bytes.
-    Uint32 SparseBlockSize DEFAULT_INITIALIZER(0);
+    /// Size of standard sparse memory block in bytes.
+    /// In Direct3D11, Direct3D12 and Vulkan this is 64Kb.
+    /// In Metal it is implementation defined.
+    /// See SPARSE_MEMORY_CAP_FLAG_STANDARD_2D_BLOCK_SHAPE, SPARSE_MEMORY_CAP_FLAG_STANDARD_2DMS_BLOCK_SHAPE,
+    /// SPARSE_MEMORY_CAP_FLAG_STANDARD_3D_BLOCK_SHAPE, SPARSE_MEMORY_CAP_FLAG_BUFFER_STANDARD_BLOCK.
+    /// See (AZ TODO: texture format info)
+    Uint32 StandardBlockSize DEFAULT_INITIALIZER(0);
     
     /// Allowed bind flags for sparse buffer.
     BIND_FLAGS BufferBindFlags  DEFAULT_INITIALIZER(BIND_NONE);
@@ -3395,11 +3387,18 @@ struct Box
 
     Box() noexcept {}
 
-    Uint32 Width() const { return MaxX - MinX; }
-    Uint32 Height() const { return MaxY - MinY; }
-    Uint32 Depth() const { return MaxZ - MinZ; }
+    constexpr Uint32 Width()   const { return MaxX - MinX; }
+    constexpr Uint32 Height()  const { return MaxY - MinY; }
+    constexpr Uint32 Depth()   const { return MaxZ - MinZ; }
 
-    bool IsValid() const { return MaxX > MinX && MaxY > MinY && MaxZ > MinZ; }
+    constexpr bool   IsValid() const { return MaxX > MinX && MaxY > MinY && MaxZ > MinZ; }
+
+    constexpr bool operator==(const Box &Rhs) const
+    {
+        return MinX == Rhs.MinX && MaxX == Rhs.MaxX &&
+               MinY == Rhs.MinY && MaxY == Rhs.MaxY &&
+               MinZ == Rhs.MinZ && MaxZ == Rhs.MaxZ;
+    }
 #endif
 };
 typedef struct Box Box;
@@ -3581,6 +3580,22 @@ struct TextureFormatInfoExt DILIGENT_DERIVE(TextureFormatInfo)
     Bool       Filterable   DEFAULT_INITIALIZER(False);
 };
 typedef struct TextureFormatInfoExt TextureFormatInfoExt;
+
+
+/// AZ TODO
+struct TextureFormatDimensions
+{
+    Uint32  MaxWidth       DEFAULT_INITIALIZER(0);
+    Uint32  MaxHeight      DEFAULT_INITIALIZER(0);
+    Uint32  MaxDepth       DEFAULT_INITIALIZER(0);
+
+    Uint32  MaxMipLevels   DEFAULT_INITIALIZER(0);
+    Uint32  MaxArraySize   DEFAULT_INITIALIZER(0);
+    Uint32  SampleBits     DEFAULT_INITIALIZER(0);
+    
+    Uint64  MaxMemorySize  DEFAULT_INITIALIZER(0);
+};
+typedef struct TextureFormatDimensions TextureFormatDimensions;
 
 
 /// AZ TODO
@@ -3931,14 +3946,5 @@ DILIGENT_TYPED_ENUM(STATE_TRANSITION_TYPE, Uint8)
     /// In other backends, this mode is similar to STATE_TRANSITION_TYPE_IMMEDIATE.
     STATE_TRANSITION_TYPE_END
 };
-
-/// AZ TODO
-DILIGENT_TYPED_ENUM(SPARSE_RESOURCE_FLAGS, Uint8)
-{
-    SPARSE_RESOURCE_FLAG_NONE     = 0,
-    SPARSE_RESOURCE_FLAG_ALIASED  = 1 << 0,
-    SPARSE_RESOURCE_FLAG_LAST     = SPARSE_RESOURCE_FLAG_ALIASED,
-};
-DEFINE_FLAG_ENUM_OPERATORS(SPARSE_RESOURCE_FLAGS);
 
 DILIGENT_END_NAMESPACE // namespace Diligent

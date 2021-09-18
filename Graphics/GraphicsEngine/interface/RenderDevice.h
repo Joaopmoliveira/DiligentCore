@@ -341,6 +341,11 @@ DILIGENT_BEGIN_INTERFACE(IRenderDevice, IObject)
     /// \remarks This method must be externally synchronized.
     VIRTUAL const TextureFormatInfoExt REF METHOD(GetTextureFormatInfoExt)(THIS_
                                                                            TEXTURE_FORMAT TexFormat) PURE;
+    
+    /// AZ TODO
+    /// Used fields: Type, Format, SampleCount, BindFlags, Usage, SparseFlags
+    VIRTUAL TextureFormatDimensions METHOD(GetTextureFormatDimensions)(THIS_
+                                                                       const TextureDesc REF TexDesc) CONST PURE;
 
     /// AZ TODO
     VIRTUAL TextureFormatSparseInfo METHOD(GetTextureFormatSparseInfo)(THIS_
@@ -400,6 +405,7 @@ DILIGENT_END_INTERFACE
 #    define IRenderDevice_GetDeviceInfo(This)                        CALL_IFACE_METHOD(RenderDevice, GetDeviceInfo,                   This)
 #    define IRenderDevice_GetTextureFormatInfo(This, ...)            CALL_IFACE_METHOD(RenderDevice, GetTextureFormatInfo,            This, __VA_ARGS__)
 #    define IRenderDevice_GetTextureFormatInfoExt(This, ...)         CALL_IFACE_METHOD(RenderDevice, GetTextureFormatInfoExt,         This, __VA_ARGS__)
+#    define IRenderDevice_GetTextureFormatDimensions(This, ...)      CALL_IFACE_METHOD(RenderDevice, GetTextureFormatDimensions,      This, __VA_ARGS__)
 #    define IRenderDevice_GetTextureFormatSparseInfo(This, ...)      CALL_IFACE_METHOD(RenderDevice, GetTextureFormatSparseInfo,      This, __VA_ARGS__)
 #    define IRenderDevice_ReleaseStaleResources(This, ...)           CALL_IFACE_METHOD(RenderDevice, ReleaseStaleResources,           This, __VA_ARGS__)
 #    define IRenderDevice_IdleGPU(This)                              CALL_IFACE_METHOD(RenderDevice, IdleGPU,                         This)

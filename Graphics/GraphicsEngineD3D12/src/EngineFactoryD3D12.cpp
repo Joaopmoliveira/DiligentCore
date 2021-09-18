@@ -781,7 +781,7 @@ GraphicsAdapterInfo EngineFactoryD3D12Impl::GetGraphicsAdapterInfo(void*        
                     Features.SparseMemory = DEVICE_FEATURE_STATE_ENABLED;
 
                     auto& SparseMem{AdapterInfo.SparseMemory};
-                    SparseMem.SparseBlockSize = D3D12_TILED_RESOURCE_TILE_SIZE_IN_BYTES;
+                    SparseMem.StandardBlockSize = D3D12_TILED_RESOURCE_TILE_SIZE_IN_BYTES;
 
                     D3D12_FEATURE_DATA_GPU_VIRTUAL_ADDRESS_SUPPORT d3d12Address = {};
                     if (SUCCEEDED(d3d12Device->CheckFeatureSupport(D3D12_FEATURE_GPU_VIRTUAL_ADDRESS_SUPPORT, &d3d12Address, sizeof(d3d12Address))))
@@ -797,6 +797,7 @@ GraphicsAdapterInfo EngineFactoryD3D12Impl::GetGraphicsAdapterInfo(void*        
 
                     SparseMem.CapFlags =
                         SPARSE_MEMORY_CAP_FLAG_BUFFER |
+                        SPARSE_MEMORY_CAP_FLAG_BUFFER_STANDARD_BLOCK |
                         SPARSE_MEMORY_CAP_FLAG_TEXTURE_2D |
                         SPARSE_MEMORY_CAP_FLAG_STANDARD_2D_BLOCK_SHAPE |
                         SPARSE_MEMORY_CAP_FLAG_ALIASED;
@@ -807,6 +808,7 @@ GraphicsAdapterInfo EngineFactoryD3D12Impl::GetGraphicsAdapterInfo(void*        
                             SPARSE_MEMORY_CAP_FLAG_SHADER_RESOURCE_RESIDENCY |
                             SPARSE_MEMORY_CAP_FLAG_NON_RESIDENT_STRICT;
                     }
+                    // AZ TODO: multisample textures
                     if (d3d12Features.TiledResourcesTier >= D3D12_TILED_RESOURCES_TIER_3)
                     {
                         SparseMem.CapFlags |=
@@ -978,18 +980,19 @@ GraphicsAdapterInfo EngineFactoryD3D12Impl::GetGraphicsAdapterInfo(void*        
     // Texture properties
     {
         auto& TexProps{AdapterInfo.Texture};
-        TexProps.MaxTexture1DDimension     = D3D12_REQ_TEXTURE1D_U_DIMENSION;
-        TexProps.MaxTexture1DArraySlices   = D3D12_REQ_TEXTURE1D_ARRAY_AXIS_DIMENSION;
-        TexProps.MaxTexture2DDimension     = D3D12_REQ_TEXTURE2D_U_OR_V_DIMENSION;
-        TexProps.MaxTexture2DArraySlices   = D3D12_REQ_TEXTURE2D_ARRAY_AXIS_DIMENSION;
-        TexProps.MaxTexture3DDimension     = D3D12_REQ_TEXTURE3D_U_V_OR_W_DIMENSION;
-        TexProps.MaxTextureCubeDimension   = D3D12_REQ_TEXTURECUBE_DIMENSION;
-        TexProps.Texture2DMSSupported      = True;
-        TexProps.Texture2DMSArraySupported = True;
-        TexProps.TextureViewSupported      = True;
-        TexProps.CubemapArraysSupported    = True;
+        TexProps.MaxTexture1DDimension      = D3D12_REQ_TEXTURE1D_U_DIMENSION;
+        TexProps.MaxTexture1DArraySlices    = D3D12_REQ_TEXTURE1D_ARRAY_AXIS_DIMENSION;
+        TexProps.MaxTexture2DDimension      = D3D12_REQ_TEXTURE2D_U_OR_V_DIMENSION;
+        TexProps.MaxTexture2DArraySlices    = D3D12_REQ_TEXTURE2D_ARRAY_AXIS_DIMENSION;
+        TexProps.MaxTexture3DDimension      = D3D12_REQ_TEXTURE3D_U_V_OR_W_DIMENSION;
+        TexProps.MaxTextureCubeDimension    = D3D12_REQ_TEXTURECUBE_DIMENSION;
+        TexProps.Texture2DMSSupported       = True;
+        TexProps.Texture2DMSArraySupported  = True;
+        TexProps.TextureViewSupported       = True;
+        TexProps.CubemapArraysSupported     = True;
+        TexProps.TextureView2DOn3DSupported = True;
 #if defined(_MSC_VER) && defined(_WIN64)
-        static_assert(sizeof(TexProps) == 28, "Did you add a new member to TextureProperites? Please initialize it here.");
+        static_assert(sizeof(TexProps) == 32, "Did you add a new member to TextureProperites? Please initialize it here.");
 #endif
     }
 

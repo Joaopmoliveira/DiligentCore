@@ -2233,8 +2233,6 @@ void DeviceContextD3D11Impl::BindSparseMemory(const BindSparseMemoryAttribs& Att
 
     auto* pd3d11DeviceContext2 = static_cast<ID3D11DeviceContext2*>(m_pd3d11DeviceContext.p);
 
-    // AZ TODO
-
     std::vector<D3D11_TILED_RESOURCE_COORDINATE> Coordinates;
     std::vector<D3D11_TILE_REGION_SIZE>          RegionSizes;
     std::vector<UINT>                            RangeFlags; // D3D11_TILE_RANGE_FLAG
@@ -2246,6 +2244,7 @@ void DeviceContextD3D11Impl::BindSparseMemory(const BindSparseMemoryAttribs& Att
     {
         if (pTilePool != nullptr && !Coordinates.empty())
         {
+            // AZ TODO: use NvAPI_D3D11_UpdateTileMappings
             pd3d11DeviceContext2->UpdateTileMappings(pResource,
                                                      static_cast<UINT>(Coordinates.size()),
                                                      Coordinates.data(),
@@ -2302,17 +2301,17 @@ void DeviceContextD3D11Impl::BindSparseMemory(const BindSparseMemoryAttribs& Att
 
             Coordinates.emplace_back();
             auto& Coord = Coordinates.back();
-            Coord.X     = static_cast<UINT>(SrcRange.BufferOffset / D3D11_2_TILED_RESOURCE_TILE_SIZE_IN_BYTES);
+            Coord.X     = StaticCast<UINT>(SrcRange.BufferOffset / D3D11_2_TILED_RESOURCE_TILE_SIZE_IN_BYTES);
 
             RegionSizes.emplace_back();
             auto& Size    = RegionSizes.back();
-            Size.Width    = SrcRange.MemorySize / D3D11_2_TILED_RESOURCE_TILE_SIZE_IN_BYTES;
-            Size.Height   = 1;
-            Size.Depth    = 1;
-            Size.bUseBox  = TRUE;
-            Size.NumTiles = Size.Width;
+            Size.Width    = 0;
+            Size.Height   = 0;
+            Size.Depth    = 0;
+            Size.bUseBox  = FALSE;
+            Size.NumTiles = SrcRange.MemorySize / D3D11_2_TILED_RESOURCE_TILE_SIZE_IN_BYTES;
 
-            RangeFlags.emplace_back(pMemD3D11 ? D3D11_TILE_RANGE_FLAG(0) : D3D11_TILE_RANGE_NULL);
+            RangeFlags.emplace_back(pMemD3D11 ? 0 : D3D11_TILE_RANGE_NULL);
             StartOffsets.emplace_back(SrcRange.MemoryOffset / D3D11_2_TILED_RESOURCE_TILE_SIZE_IN_BYTES);
             RangeTileCounts.emplace_back(SrcRange.MemorySize / D3D11_2_TILED_RESOURCE_TILE_SIZE_IN_BYTES);
 
@@ -2352,8 +2351,8 @@ void DeviceContextD3D11Impl::BindSparseMemory(const BindSparseMemoryAttribs& Att
                 Coord.Z = SrcRange.Region.MinZ / TexSparseProps.TileSize[2];
 
                 Size.Width    = (SrcRange.Region.Width() + TexSparseProps.TileSize[0] - 1) / TexSparseProps.TileSize[0];
-                Size.Height   = static_cast<UINT16>((SrcRange.Region.Height() + TexSparseProps.TileSize[1] - 1) / TexSparseProps.TileSize[1]);
-                Size.Depth    = static_cast<UINT16>((SrcRange.Region.Depth() + TexSparseProps.TileSize[2] - 1) / TexSparseProps.TileSize[2]);
+                Size.Height   = StaticCast<UINT16>((SrcRange.Region.Height() + TexSparseProps.TileSize[1] - 1) / TexSparseProps.TileSize[1]);
+                Size.Depth    = StaticCast<UINT16>((SrcRange.Region.Depth() + TexSparseProps.TileSize[2] - 1) / TexSparseProps.TileSize[2]);
                 Size.bUseBox  = TRUE;
                 Size.NumTiles = Size.Width * Size.Height * Size.Depth;
             }
@@ -2361,7 +2360,7 @@ void DeviceContextD3D11Impl::BindSparseMemory(const BindSparseMemoryAttribs& Att
             {
                 // The X coordinate is used to indicate a tile within the packed mip region, rather than a logical region of a single subresource.
                 // The Y and Z coordinates must be zero.
-                Coord.X = 0;
+                Coord.X = StaticCast<UINT>(SrcRange.OffsetInMipTail / D3D11_2_TILED_RESOURCE_TILE_SIZE_IN_BYTES);
                 Coord.Y = 0;
                 Coord.Z = 0;
 
@@ -2369,10 +2368,10 @@ void DeviceContextD3D11Impl::BindSparseMemory(const BindSparseMemoryAttribs& Att
                 Size.Height   = 0;
                 Size.Depth    = 0;
                 Size.bUseBox  = FALSE;
-                Size.NumTiles = TexSparseProps.MipTailSize / D3D11_2_TILED_RESOURCE_TILE_SIZE_IN_BYTES;
+                Size.NumTiles = SrcRange.MemorySize / D3D11_2_TILED_RESOURCE_TILE_SIZE_IN_BYTES;
             }
 
-            RangeFlags.emplace_back(pMemD3D11 ? D3D11_TILE_RANGE_FLAG(0) : D3D11_TILE_RANGE_NULL);
+            RangeFlags.emplace_back(pMemD3D11 ? 0 : D3D11_TILE_RANGE_NULL);
             StartOffsets.emplace_back(SrcRange.MemoryOffset / D3D11_2_TILED_RESOURCE_TILE_SIZE_IN_BYTES);
             RangeTileCounts.emplace_back(SrcRange.MemorySize / D3D11_2_TILED_RESOURCE_TILE_SIZE_IN_BYTES);
 

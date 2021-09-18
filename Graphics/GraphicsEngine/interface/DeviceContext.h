@@ -1688,7 +1688,7 @@ struct SparseBufferMemoryBindRange
     Uint32           MemoryOffset  DEFAULT_INITIALIZER(0);
     
     /// Size of the memory which will be bound/unbound.
-    /// Must be multiple of the SparseMemoryProperties::SparseBlockSize.
+    /// Must be multiple of the BufferSparseProperties::MemoryAlignment.
     Uint32           MemorySize    DEFAULT_INITIALIZER(0);
     
     /// Pointer to the memory object.
@@ -1739,18 +1739,25 @@ struct SparseTextureMemoryBindRange
 
     /// Region in pixels where to bind/unbind memory.
     /// Must be multiple of TextureSparseProperties::TileSize.
-    Box              Region        DEFAULT_INITIALIZER({}); // AZ TODO: mip tail can contain multiple blocks which may be bound separatelly (DX only?)
+    /// If MipLevel is equals to TextureSparseProperties::FirstMipInTail then this field ignored and OffsetInMipTail must be used.
+    Box              Region        DEFAULT_INITIALIZER({}); // AZ TODO: allow Max* to be greater than texture size if region size equals to tile size, it will help to avoid min() in user code
     
+    /// Used to bind/unbind memory to the mip tail.
+    /// If MipLevel is less than TextureSparseProperties::FirstMipInTail then this field ignored and Region must be used.
+    Uint64           OffsetInMipTail DEFAULT_INITIALIZER(0);
+
     /// Size of the memory which will be bound/unbound to Region.
     /// Memory size must equal to the number of tiles in Region multiplied by the sparse block size.
     /// Must be multiple of the SparseMemoryProperties::SparseBlockSize.
     /// Ignored in Metal.
+    /// 
+    /// \note This is 32bit value because on most devices size of single memory block is limited to 2^32.
     Uint32           MemorySize    DEFAULT_INITIALIZER(0);
     
     /// Memory range offset in the pMemory.
     /// Must be multiple of the TextureSparseProperties::MemoryAlignment.
     /// Ignored in Metal.
-    Uint32           MemoryOffset  DEFAULT_INITIALIZER(0);
+    Uint32           MemoryOffset  DEFAULT_INITIALIZER(0); // AZ TODO: 64bit? In dx11 it is always 32bit, in dx12 & vk can be 64 only because of multiple pages
     
     /// Pointer to the memory object.
     /// If non-null then memory will be bound to Region, otherwise memory will be unbound.
@@ -1780,6 +1787,7 @@ typedef struct SparseTextureMemoryBind SparseTextureMemoryBind;
 struct BindSparseMemoryAttribs
 {
     /// Array of sparse buffer bind commands.
+    /// All commands must bind/unbind unique range in the buffer.
     /// Not supported in Metal.
     const SparseBufferMemoryBind*  pBufferBinds   DEFAULT_INITIALIZER(nullptr);
 
@@ -1787,6 +1795,7 @@ struct BindSparseMemoryAttribs
     Uint32                         NumBufferBinds DEFAULT_INITIALIZER(0);
 
     /// Array of sparse texture bind commands.
+    /// All commands must bind/unbind unique region in the texture.
     const SparseTextureMemoryBind* pTextureBinds   DEFAULT_INITIALIZER(nullptr);
 
     /// Number of elements in the pTextureBinds.

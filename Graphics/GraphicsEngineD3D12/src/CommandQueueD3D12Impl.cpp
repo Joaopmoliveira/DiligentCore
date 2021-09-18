@@ -134,6 +134,7 @@ void CommandQueueD3D12Impl::UpdateTileMappings(ResourceTileMappingsD3D12* pMappi
 
     for (Uint32 i = 0; i < Count; ++i)
     {
+        // AZ TODO: NvAPI_D3D12_UpdateTileMappings
         const auto& Mapping = pMappings[i];
         m_pd3d12CmdQueue->UpdateTileMappings(
             Mapping.pResource,

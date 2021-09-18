@@ -118,9 +118,6 @@ BufferD3D12Impl::BufferD3D12Impl(IReferenceCounters*        pRefCounters,
 
         if (m_Desc.Usage == USAGE_SPARSE)
         {
-            // In Direct3D12 sparse resources is always resident and aliased
-            m_Desc.SparseFlags |= SPARSE_RESOURCE_FLAG_ALIASED;
-
             auto hr = pd3d12Device->CreateReservedResource(&D3D12BuffDesc, D3D12_RESOURCE_STATE_COMMON, nullptr,
                                                            __uuidof(m_pd3d12Resource),
                                                            reinterpret_cast<void**>(static_cast<ID3D12Resource**>(&m_pd3d12Resource)));
@@ -268,6 +265,8 @@ static BufferDesc BufferDescFromD3D12Resource(BufferDesc BuffDesc, ID3D12Resourc
         DEV_CHECK_ERR(!(BuffDesc.BindFlags & BIND_SHADER_RESOURCE), "BIND_SHADER_RESOURCE flag is specified by the BufferDesc, while d3d12 resource was created with D3D12_RESOURCE_FLAG_DENY_SHADER_RESOURCE flag");
         BuffDesc.BindFlags &= ~BIND_SHADER_RESOURCE;
     }
+    else
+        BuffDesc.BindFlags |= BIND_SHADER_RESOURCE;
 
     if ((BuffDesc.BindFlags & BIND_UNORDERED_ACCESS) || (BuffDesc.BindFlags & BIND_SHADER_RESOURCE))
     {
@@ -283,6 +282,8 @@ static BufferDesc BufferDescFromD3D12Resource(BufferDesc BuffDesc, ID3D12Resourc
             UNEXPECTED("Buffer mode must be structured or formatted");
         }
     }
+
+    // Warning: can not detect sparse buffer
 
     return BuffDesc;
 }

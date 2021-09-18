@@ -748,18 +748,19 @@ void RenderDeviceGLImpl::InitAdapterInfo()
             ENABLE_FEATURE(UniformBuffer8BitAccess,       CheckExtension("GL_EXT_shader_8bit_storage"));
             // clang-format on
 
-            TexProps.MaxTexture1DDimension     = MaxTextureSize;
-            TexProps.MaxTexture1DArraySlices   = MaxLayers;
-            TexProps.MaxTexture2DDimension     = MaxTextureSize;
-            TexProps.MaxTexture2DArraySlices   = MaxLayers;
-            TexProps.MaxTexture3DDimension     = Max3DTextureSize;
-            TexProps.MaxTextureCubeDimension   = MaxCubeTextureSize;
-            TexProps.Texture2DMSSupported      = IsGL43OrAbove || CheckExtension("GL_ARB_texture_storage_multisample");
-            TexProps.Texture2DMSArraySupported = IsGL43OrAbove || CheckExtension("GL_ARB_texture_storage_multisample");
-            TexProps.TextureViewSupported      = IsGL43OrAbove || CheckExtension("GL_ARB_texture_view");
-            TexProps.CubemapArraysSupported    = IsGL43OrAbove || CheckExtension("GL_ARB_texture_cube_map_array");
+            TexProps.MaxTexture1DDimension      = MaxTextureSize;
+            TexProps.MaxTexture1DArraySlices    = MaxLayers;
+            TexProps.MaxTexture2DDimension      = MaxTextureSize;
+            TexProps.MaxTexture2DArraySlices    = MaxLayers;
+            TexProps.MaxTexture3DDimension      = Max3DTextureSize;
+            TexProps.MaxTextureCubeDimension    = MaxCubeTextureSize;
+            TexProps.Texture2DMSSupported       = IsGL43OrAbove || CheckExtension("GL_ARB_texture_storage_multisample");
+            TexProps.Texture2DMSArraySupported  = IsGL43OrAbove || CheckExtension("GL_ARB_texture_storage_multisample");
+            TexProps.TextureViewSupported       = IsGL43OrAbove || CheckExtension("GL_ARB_texture_view");
+            TexProps.CubemapArraysSupported     = IsGL43OrAbove || CheckExtension("GL_ARB_texture_cube_map_array");
+            TexProps.TextureView2DOn3DSupported = TexProps.TextureViewSupported;
 #if defined(_MSC_VER) && defined(_WIN64)
-            static_assert(sizeof(TexProps) == 28, "Did you add a new member to TextureProperites? Please initialize it here.");
+            static_assert(sizeof(TexProps) == 32, "Did you add a new member to TextureProperites? Please initialize it here.");
 #endif
 
             SamProps.BorderSamplingModeSupported   = True;
@@ -817,18 +818,19 @@ void RenderDeviceGLImpl::InitAdapterInfo()
             ENABLE_FEATURE(UniformBuffer8BitAccess,   strstr(Extensions, "shader_8bit_storage"));
             // clang-format on
 
-            TexProps.MaxTexture1DDimension     = 0; // Not supported in GLES 3.2
-            TexProps.MaxTexture1DArraySlices   = 0; // Not supported in GLES 3.2
-            TexProps.MaxTexture2DDimension     = MaxTextureSize;
-            TexProps.MaxTexture2DArraySlices   = MaxLayers;
-            TexProps.MaxTexture3DDimension     = Max3DTextureSize;
-            TexProps.MaxTextureCubeDimension   = MaxCubeTextureSize;
-            TexProps.Texture2DMSSupported      = IsGLES31OrAbove || strstr(Extensions, "texture_storage_multisample");
-            TexProps.Texture2DMSArraySupported = IsGLES32OrAbove || strstr(Extensions, "texture_storage_multisample_2d_array");
-            TexProps.TextureViewSupported      = IsGLES31OrAbove || strstr(Extensions, "texture_view");
-            TexProps.CubemapArraysSupported    = IsGLES32OrAbove || strstr(Extensions, "texture_cube_map_array");
+            TexProps.MaxTexture1DDimension      = 0; // Not supported in GLES 3.2
+            TexProps.MaxTexture1DArraySlices    = 0; // Not supported in GLES 3.2
+            TexProps.MaxTexture2DDimension      = MaxTextureSize;
+            TexProps.MaxTexture2DArraySlices    = MaxLayers;
+            TexProps.MaxTexture3DDimension      = Max3DTextureSize;
+            TexProps.MaxTextureCubeDimension    = MaxCubeTextureSize;
+            TexProps.Texture2DMSSupported       = IsGLES31OrAbove || strstr(Extensions, "texture_storage_multisample");
+            TexProps.Texture2DMSArraySupported  = IsGLES32OrAbove || strstr(Extensions, "texture_storage_multisample_2d_array");
+            TexProps.TextureViewSupported       = IsGLES31OrAbove || strstr(Extensions, "texture_view");
+            TexProps.CubemapArraysSupported     = IsGLES32OrAbove || strstr(Extensions, "texture_cube_map_array");
+            TexProps.TextureView2DOn3DSupported = TexProps.TextureViewSupported;
 #if defined(_MSC_VER) && defined(_WIN64)
-            static_assert(sizeof(TexProps) == 28, "Did you add a new member to TextureProperites? Please initialize it here.");
+            static_assert(sizeof(TexProps) == 32, "Did you add a new member to TextureProperites? Please initialize it here.");
 #endif
 
             SamProps.BorderSamplingModeSupported   = GL_TEXTURE_BORDER_COLOR && (IsGLES32OrAbove || strstr(Extensions, "texture_border_clamp"));

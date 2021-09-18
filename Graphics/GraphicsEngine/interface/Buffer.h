@@ -70,6 +70,16 @@ DILIGENT_TYPED_ENUM(BUFFER_MODE, Uint8)
     BUFFER_MODE_NUM_MODES
 };
 
+DILIGENT_TYPED_ENUM(MISC_BUFFER_FLAGS, Uint8)
+{
+    MISC_BUFFER_FLAG_NONE          = 0,
+
+    /// For sparse buffer allow to bind same memory range in different buffer ranges
+    /// or in different sparse buffers.
+    MISC_BUFFER_FLAG_SPARSE_ALIASING = 1u << 0,
+};
+DEFINE_FLAG_ENUM_OPERATORS(MISC_BUFFER_FLAGS)
+
 /// Buffer description
 struct BufferDesc DILIGENT_DERIVE(DeviceObjectAttribs)
 
@@ -94,9 +104,9 @@ struct BufferDesc DILIGENT_DERIVE(DeviceObjectAttribs)
 
     /// Buffer mode, see Diligent::BUFFER_MODE
     BUFFER_MODE Mode                DEFAULT_INITIALIZER(BUFFER_MODE_UNDEFINED);
-
-    /// Buffer sparse flags, see Diligent::SPARSE_RESOURCE_FLAGS
-    SPARSE_RESOURCE_FLAGS SparseFlags DEFAULT_INITIALIZER(SPARSE_RESOURCE_FLAG_NONE);
+    
+    /// Miscellaneous flags, see Diligent::MISC_BUFFER_FLAGS for details.
+    MISC_BUFFER_FLAGS MiscFlags     DEFAULT_INITIALIZER(MISC_BUFFER_FLAG_NONE);
 
     /// Buffer element stride, in bytes.
 
@@ -207,7 +217,9 @@ struct BufferSparseProperties
 {
     /// Required alignment for memory offset and offset in buffer which is used in sparse binding command,
     /// see Diligent::SparseBufferMemoryBindRange.
-    Uint32  MemoryAlignment  DEFAULT_INITIALIZER(0); // AZ TODO: it is always equals to SparseBlockSize and can be removed
+    /// In Direct3D11 and Direct3D12 this is always 64Kb.
+    /// In Vulkan this is not documented, but usually it is 64Kb.
+    Uint32  MemoryAlignment  DEFAULT_INITIALIZER(0); // AZ TODO: rename to BlockSize ?
 };
 typedef struct BufferSparseProperties BufferSparseProperties;
 

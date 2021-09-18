@@ -65,8 +65,8 @@ TextureVkImpl::TextureVkImpl(IReferenceCounters*        pRefCounters,
     const auto& ExtFeatures   = LogicalDevice.GetEnabledExtFeatures();
 
     const bool ImageView2DSupported =
-        (m_Desc.Type == RESOURCE_DIM_TEX_3D && LogicalDevice.GetEnabledExtFeatures().HasPortabilitySubset) ?
-        LogicalDevice.GetEnabledExtFeatures().PortabilitySubset.imageView2DOn3DImage == VK_TRUE :
+        (m_Desc.Type == RESOURCE_DIM_TEX_3D && ExtFeatures.HasPortabilitySubset) ?
+        ExtFeatures.PortabilitySubset.imageView2DOn3DImage == VK_TRUE :
         true;
 
     if (m_Desc.Usage == USAGE_IMMUTABLE || m_Desc.Usage == USAGE_DEFAULT || m_Desc.Usage == USAGE_DYNAMIC || m_Desc.Usage == USAGE_SPARSE)
@@ -130,44 +130,10 @@ TextureVkImpl::TextureVkImpl(IReferenceCounters*        pRefCounters,
         ImageCI.samples = static_cast<VkSampleCountFlagBits>(m_Desc.SampleCount);
         ImageCI.tiling  = VK_IMAGE_TILING_OPTIMAL;
 
-        ImageCI.usage = VK_IMAGE_USAGE_TRANSFER_SRC_BIT | VK_IMAGE_USAGE_TRANSFER_DST_BIT;
-        if (m_Desc.BindFlags & BIND_RENDER_TARGET)
-        {
-            // VK_IMAGE_USAGE_TRANSFER_DST_BIT is required for vkCmdClearColorImage()
-            ImageCI.usage |= VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT | VK_IMAGE_USAGE_TRANSFER_DST_BIT;
-            DEV_CHECK_ERR(ImageView2DSupported, "imageView2DOn3DImage in VkPhysicalDevicePortabilitySubsetFeaturesKHR is not enabled, can not create render target with 2D image view");
-        }
-        if (m_Desc.BindFlags & BIND_DEPTH_STENCIL)
-        {
-            // VK_IMAGE_USAGE_TRANSFER_DST_BIT is required for vkCmdClearDepthStencilImage()
-            ImageCI.usage |= VK_IMAGE_USAGE_DEPTH_STENCIL_ATTACHMENT_BIT | VK_IMAGE_USAGE_TRANSFER_DST_BIT;
+        ImageCI.usage = BindFlagsToVkImageUsage(m_Desc.BindFlags, IsMemoryless, ExtFeatures.FragmentDensityMap.fragmentDensityMap != VK_FALSE);
+
+        if (m_Desc.BindFlags & (BIND_DEPTH_STENCIL | BIND_RENDER_TARGET))
             DEV_CHECK_ERR(ImageView2DSupported, "imageView2DOn3DImage in VkPhysicalDevicePortabilitySubsetFeaturesKHR is not enabled, can not create depth-stencil target with 2D image view");
-        }
-        if (m_Desc.BindFlags & BIND_UNORDERED_ACCESS)
-        {
-            ImageCI.usage |= VK_IMAGE_USAGE_STORAGE_BIT;
-        }
-        if (m_Desc.BindFlags & BIND_SHADER_RESOURCE)
-        {
-            ImageCI.usage |= VK_IMAGE_USAGE_SAMPLED_BIT;
-        }
-        if (m_Desc.BindFlags & BIND_INPUT_ATTACHMENT)
-        {
-            ImageCI.usage |= VK_IMAGE_USAGE_INPUT_ATTACHMENT_BIT;
-        }
-        if (m_Desc.BindFlags & BIND_SHADING_RATE)
-        {
-            if (ExtFeatures.ShadingRate.attachmentFragmentShadingRate != VK_FALSE)
-            {
-                ImageCI.usage |= VK_IMAGE_USAGE_FRAGMENT_SHADING_RATE_ATTACHMENT_BIT_KHR;
-            }
-            else if (ExtFeatures.FragmentDensityMap.fragmentDensityMap != VK_FALSE)
-            {
-                ImageCI.usage |= VK_IMAGE_USAGE_FRAGMENT_DENSITY_MAP_BIT_EXT;
-            }
-            else
-                UNEXPECTED("BIND_SHADING_RATE requires ShadingRate or FragmentDensityMap Vulkan features");
-        }
 
         if (m_Desc.MiscFlags & MISC_TEXTURE_FLAG_GENERATE_MIPS)
         {
@@ -209,15 +175,12 @@ TextureVkImpl::TextureVkImpl(IReferenceCounters*        pRefCounters,
         // and the transition away from this layout is not guaranteed to preserve that data.
         ImageCI.initialLayout = VK_IMAGE_LAYOUT_UNDEFINED;
 
-        if (IsMemoryless)
-        {
-            ImageCI.usage &= (VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT | VK_IMAGE_USAGE_DEPTH_STENCIL_ATTACHMENT_BIT | VK_IMAGE_USAGE_INPUT_ATTACHMENT_BIT);
-            ImageCI.usage |= VK_IMAGE_USAGE_TRANSIENT_ATTACHMENT_BIT;
-        }
-
         if (m_Desc.Usage == USAGE_SPARSE)
         {
-            ImageCI.flags = SparseResFlagsToVkImageCreateFlags(m_Desc.SparseFlags);
+            ImageCI.flags =
+                VK_IMAGE_CREATE_SPARSE_BINDING_BIT |
+                VK_IMAGE_CREATE_SPARSE_RESIDENCY_BIT |
+                (m_Desc.MiscFlags & MISC_TEXTURE_FLAG_SPARSE_ALIASING ? VK_IMAGE_CREATE_SPARSE_ALIASED_BIT : 0);
 
             m_VulkanImage = LogicalDevice.CreateImage(ImageCI, m_Desc.Name);
 
@@ -536,6 +499,9 @@ TextureVkImpl::TextureVkImpl(IReferenceCounters*        pRefCounters,
     m_VulkanImage{VkImageHandle}
 {
     SetState(InitialState);
+
+    if (m_Desc.Usage == USAGE_SPARSE)
+        InitSparseProperties();
 }
 
 void TextureVkImpl::CreateViewInternal(const TextureViewDesc& ViewDesc, ITextureView** ppView, bool bIsDefaultView)
@@ -807,7 +773,7 @@ void TextureVkImpl::InitSparseProperties()
     vkGetImageSparseMemoryRequirements(LogicalDevice.GetVkDevice(), GetVkImage(), &SparseReqCount, SparseReq);
 
     Props.MipTailOffset  = SparseReq[0].imageMipTailOffset;
-    Props.MipTailSize    = StaticCast<Uint32>(SparseReq[0].imageMipTailSize);
+    Props.MipTailSize    = SparseReq[0].imageMipTailSize;
     Props.MipTailStride  = SparseReq[0].imageMipTailStride;
     Props.FirstMipInTail = SparseReq[0].imageMipTailFirstLod;
     Props.TileSize[0]    = SparseReq[0].formatProperties.imageGranularity.width;
@@ -820,18 +786,35 @@ void TextureVkImpl::InitSparseProperties()
     if (m_Desc.Type == RESOURCE_DIM_TEX_3D || m_Desc.ArraySize == 1)
     {
         VERIFY_EXPR(Props.MipTailOffset < MemReq.size);
-        VERIFY_EXPR(Props.MipTailOffset + Props.MipTailSize == MemReq.size);
+        VERIFY_EXPR(Props.MipTailOffset + Props.MipTailSize <= MemReq.size);
+        Props.MipTailStride = 0;
     }
     else
     {
-        VERIFY_EXPR(Props.MipTailStride > 0);
+        if (Props.Flags & SPARSE_TEXTURE_FLAG_SINGLE_MIPTAIL)
+            Props.MipTailStride = 0;
+        else
+            VERIFY_EXPR(Props.MipTailStride > 0);
+
         VERIFY_EXPR(Props.MipTailStride * m_Desc.ArraySize == MemReq.size);
+        VERIFY_EXPR(Props.MipTailStride % MemReq.alignment == 0);
         VERIFY_EXPR(Props.MipTailOffset < Props.MipTailStride);
         VERIFY_EXPR(Props.MipTailOffset + Props.MipTailSize <= Props.MipTailStride);
     }
 
     Props.MemorySize      = MemReq.size;
     Props.MemoryAlignment = StaticCast<Uint32>(MemReq.alignment);
+
+#ifdef DILIGENT_DEBUG
+    const auto&  FmtAttribs    = GetTextureFormatAttribs(m_Desc.Format);
+    const Uint32 BytesPerBlock = FmtAttribs.GetElementSize();
+    const auto   BytesPerTile =
+        (Props.TileSize[0] / FmtAttribs.BlockWidth) *
+        (Props.TileSize[1] / FmtAttribs.BlockHeight) *
+        Props.TileSize[2] * m_Desc.SampleCount * BytesPerBlock;
+
+    VERIFY(BytesPerTile == Props.MemoryAlignment, "Expected that memory alignment equals to block size");
+#endif
 }
 
 } // namespace Diligent

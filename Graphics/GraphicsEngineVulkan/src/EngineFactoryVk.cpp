@@ -166,18 +166,19 @@ GraphicsAdapterInfo GetPhysicalDeviceGraphicsAdapterInfo(const VulkanUtilities::
     // Texture properties
     {
         auto& TexProps{AdapterInfo.Texture};
-        TexProps.MaxTexture1DDimension     = vkDeviceLimits.maxImageDimension1D;
-        TexProps.MaxTexture1DArraySlices   = vkDeviceLimits.maxImageArrayLayers;
-        TexProps.MaxTexture2DDimension     = vkDeviceLimits.maxImageDimension2D;
-        TexProps.MaxTexture2DArraySlices   = vkDeviceLimits.maxImageArrayLayers;
-        TexProps.MaxTexture3DDimension     = vkDeviceLimits.maxImageDimension3D;
-        TexProps.MaxTextureCubeDimension   = vkDeviceLimits.maxImageDimensionCube;
-        TexProps.Texture2DMSSupported      = True;
-        TexProps.Texture2DMSArraySupported = True;
-        TexProps.TextureViewSupported      = True;
-        TexProps.CubemapArraysSupported    = vkFeatures.imageCubeArray;
+        TexProps.MaxTexture1DDimension      = vkDeviceLimits.maxImageDimension1D;
+        TexProps.MaxTexture1DArraySlices    = vkDeviceLimits.maxImageArrayLayers;
+        TexProps.MaxTexture2DDimension      = vkDeviceLimits.maxImageDimension2D;
+        TexProps.MaxTexture2DArraySlices    = vkDeviceLimits.maxImageArrayLayers;
+        TexProps.MaxTexture3DDimension      = vkDeviceLimits.maxImageDimension3D;
+        TexProps.MaxTextureCubeDimension    = vkDeviceLimits.maxImageDimensionCube;
+        TexProps.Texture2DMSSupported       = True;
+        TexProps.Texture2DMSArraySupported  = True;
+        TexProps.TextureViewSupported       = True;
+        TexProps.CubemapArraysSupported     = vkFeatures.imageCubeArray;
+        TexProps.TextureView2DOn3DSupported = vkExtFeatures.HasPortabilitySubset ? vkExtFeatures.PortabilitySubset.imageView2DOn3DImage == VK_TRUE : True;
 #if defined(_MSC_VER) && defined(_WIN64)
-        static_assert(sizeof(TexProps) == 28, "Did you add a new member to TextureProperites? Please initialize it here.");
+        static_assert(sizeof(TexProps) == 32, "Did you add a new member to TextureProperites? Please initialize it here.");
 #endif
     }
 
@@ -411,8 +412,8 @@ GraphicsAdapterInfo GetPhysicalDeviceGraphicsAdapterInfo(const VulkanUtilities::
         const auto& SparseProps     = vkDeviceProps.sparseProperties;
         auto&       SparseMem       = AdapterInfo.SparseMemory;
         SparseMem.AddressSpaceSize  = vkDeviceLimits.sparseAddressSpaceSize;
-        SparseMem.ResourceSpaceSize = vkDeviceLimits.sparseAddressSpaceSize;
-        SparseMem.SparseBlockSize   = 64u << 10;
+        SparseMem.ResourceSpaceSize = vkDeviceLimits.sparseAddressSpaceSize; // no way to query
+        SparseMem.StandardBlockSize = 64u << 10;                             // docs: "All currently defined standard sparse image block shapes are 64 KB in size."
 
         SparseMem.BufferBindFlags =
             BIND_VERTEX_BUFFER |
@@ -448,9 +449,10 @@ GraphicsAdapterInfo GetPhysicalDeviceGraphicsAdapterInfo(const VulkanUtilities::
     // Set memory properties
     {
         auto& Mem{AdapterInfo.Memory};
-        Mem.LocalMemory        = 0;
-        Mem.HostVisibileMemory = 0;
-        Mem.UnifiedMemory      = 0;
+        Mem.LocalMemory         = 0;
+        Mem.HostVisibileMemory  = 0;
+        Mem.UnifiedMemory       = 0;
+        Mem.MaxMemoryAllocation = vkDeviceExtProps.Maintenance3.maxMemoryAllocationSize;
 
         std::bitset<VK_MAX_MEMORY_HEAPS> DeviceLocalHeap;
         std::bitset<VK_MAX_MEMORY_HEAPS> HostVisibleHeap;

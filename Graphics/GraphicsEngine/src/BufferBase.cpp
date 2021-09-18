@@ -124,15 +124,15 @@ void ValidateBufferDesc(const BufferDesc& Desc, const IRenderDevice* pDevice) no
 
         case USAGE_SPARSE:
         {
-            const auto& SparseProps = pDevice->GetAdapterInfo().SparseMemory;
+            const auto& SparseMem = pDevice->GetAdapterInfo().SparseMemory;
             VERIFY_BUFFER(Features.SparseMemory, "sparse buffer requires SparseMemory feature");
             VERIFY_BUFFER(Desc.CPUAccessFlags == CPU_ACCESS_NONE, "sparse buffers can't have any CPU access flags set.");
-            VERIFY_BUFFER(Desc.Size <= SparseProps.ResourceSpaceSize, "sparse buffer size (", Desc.Size, ") must not be greater than (", SparseProps.ResourceSpaceSize, ")");
-            VERIFY_BUFFER(SparseProps.CapFlags & SPARSE_MEMORY_CAP_FLAG_BUFFER, "sparse buffer requires SPARSE_MEMORY_CAP_FLAG_BUFFER capability");
-            if ((Desc.SparseFlags & SPARSE_RESOURCE_FLAG_ALIASED) != 0)
-                VERIFY_BUFFER(SparseProps.CapFlags & SPARSE_MEMORY_CAP_FLAG_ALIASED, "SPARSE_RESOURCE_FLAG_ALIASED flag requires SPARSE_MEMORY_CAP_FLAG_ALIASED capability");
-            VERIFY_BUFFER((Desc.BindFlags & ~SparseProps.BufferBindFlags) == 0,
-                          "the following bind flags are not allowed for a sparse buffer: ", GetBindFlagsString(Desc.BindFlags & ~SparseProps.BufferBindFlags, ", "), '.');
+            VERIFY_BUFFER(Desc.Size <= SparseMem.ResourceSpaceSize, "sparse buffer size (", Desc.Size, ") must not be greater than (", SparseMem.ResourceSpaceSize, ")");
+            VERIFY_BUFFER(SparseMem.CapFlags & SPARSE_MEMORY_CAP_FLAG_BUFFER, "sparse buffer requires SPARSE_MEMORY_CAP_FLAG_BUFFER capability");
+            if ((Desc.MiscFlags & MISC_BUFFER_FLAG_SPARSE_ALIASING) != 0)
+                VERIFY_BUFFER(SparseMem.CapFlags & SPARSE_MEMORY_CAP_FLAG_ALIASED, "SPARSE_RESOURCE_FLAG_ALIASED flag requires SPARSE_MEMORY_CAP_FLAG_ALIASED capability");
+            VERIFY_BUFFER((Desc.BindFlags & ~SparseMem.BufferBindFlags) == 0,
+                          "the following bind flags are not allowed for a sparse buffer: ", GetBindFlagsString(Desc.BindFlags & ~SparseMem.BufferBindFlags, ", "), '.');
             break;
         }
 
@@ -155,10 +155,10 @@ void ValidateBufferDesc(const BufferDesc& Desc, const IRenderDevice* pDevice) no
 
     if (Desc.Usage != USAGE_SPARSE)
     {
-        VERIFY_BUFFER(Desc.Size >= MemoryInfo.MaxMemoryAllocation,
+        VERIFY_BUFFER(MemoryInfo.MaxMemoryAllocation == 0 || Desc.Size <= MemoryInfo.MaxMemoryAllocation,
                       "non-sparse buffer size (", Desc.Size, ") must not be greater than maximum allocation size (", MemoryInfo.MaxMemoryAllocation, ")");
-        VERIFY_BUFFER(Desc.SparseFlags == SPARSE_RESOURCE_FLAG_NONE,
-                      "SparseFlags must be SPARSE_RESOURCE_FLAG_NONE if usege is not USAGE_SPARSE");
+        VERIFY_BUFFER((Desc.MiscFlags & MISC_BUFFER_FLAG_SPARSE_ALIASING) == 0,
+                      "MiscFlags must not have MISC_BUFFER_FLAG_SPARSE_ALIASING if usege is not USAGE_SPARSE");
     }
 }
 

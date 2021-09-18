@@ -3851,7 +3851,7 @@ void DeviceContextVkImpl::BindSparseMemory(const BindSparseMemoryAttribs& Attrib
                 DstRange.memory         = MemRangeVk.Handle;
                 DstRange.memoryOffset   = MemRangeVk.Offset;
                 DstRange.size           = MemRangeVk.Size;
-                DstRange.resourceOffset = TexSparseProps.MipTailOffset + TexSparseProps.MipTailStride * SrcRange.ArraySlice;
+                DstRange.resourceOffset = TexSparseProps.MipTailOffset + TexSparseProps.MipTailStride * SrcRange.ArraySlice + SrcRange.OffsetInMipTail;
                 DstRange.flags          = 0;
             }
         }

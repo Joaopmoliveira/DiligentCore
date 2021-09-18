@@ -442,18 +442,19 @@ GraphicsAdapterInfo EngineFactoryD3D11Impl::GetGraphicsAdapterInfo(void*        
     // Texture properties
     {
         auto& TexProps{AdapterInfo.Texture};
-        TexProps.MaxTexture1DDimension     = D3D11_REQ_TEXTURE1D_U_DIMENSION;
-        TexProps.MaxTexture1DArraySlices   = D3D11_REQ_TEXTURE1D_ARRAY_AXIS_DIMENSION;
-        TexProps.MaxTexture2DDimension     = D3D11_REQ_TEXTURE2D_U_OR_V_DIMENSION;
-        TexProps.MaxTexture2DArraySlices   = D3D11_REQ_TEXTURE2D_ARRAY_AXIS_DIMENSION;
-        TexProps.MaxTexture3DDimension     = D3D11_REQ_TEXTURE3D_U_V_OR_W_DIMENSION;
-        TexProps.MaxTextureCubeDimension   = D3D11_REQ_TEXTURECUBE_DIMENSION;
-        TexProps.Texture2DMSSupported      = True;
-        TexProps.Texture2DMSArraySupported = True;
-        TexProps.TextureViewSupported      = True;
-        TexProps.CubemapArraysSupported    = True;
+        TexProps.MaxTexture1DDimension      = D3D11_REQ_TEXTURE1D_U_DIMENSION;
+        TexProps.MaxTexture1DArraySlices    = D3D11_REQ_TEXTURE1D_ARRAY_AXIS_DIMENSION;
+        TexProps.MaxTexture2DDimension      = D3D11_REQ_TEXTURE2D_U_OR_V_DIMENSION;
+        TexProps.MaxTexture2DArraySlices    = D3D11_REQ_TEXTURE2D_ARRAY_AXIS_DIMENSION;
+        TexProps.MaxTexture3DDimension      = D3D11_REQ_TEXTURE3D_U_V_OR_W_DIMENSION;
+        TexProps.MaxTextureCubeDimension    = D3D11_REQ_TEXTURECUBE_DIMENSION;
+        TexProps.Texture2DMSSupported       = True;
+        TexProps.Texture2DMSArraySupported  = True;
+        TexProps.TextureViewSupported       = True;
+        TexProps.CubemapArraysSupported     = True;
+        TexProps.TextureView2DOn3DSupported = True;
 #if defined(_MSC_VER) && defined(_WIN64)
-        static_assert(sizeof(TexProps) == 28, "Did you add a new member to TextureProperites? Please initialize it here.");
+        static_assert(sizeof(TexProps) == 32, "Did you add a new member to TextureProperites? Please initialize it here.");
 #endif
     }
 
@@ -532,10 +533,11 @@ GraphicsAdapterInfo EngineFactoryD3D11Impl::GetGraphicsAdapterInfo(void*        
                 auto& SparseMem{AdapterInfo.SparseMemory};
                 // https://docs.microsoft.com/en-us/windows/win32/direct3d11/address-space-available-for-tiled-resources
                 SparseMem.AddressSpaceSize  = Uint64{1} << (sizeof(void*) > 4 ? 40 : 32);
-                SparseMem.ResourceSpaceSize = ~Uint64{0}; // no limits
-                SparseMem.SparseBlockSize   = D3D11_2_TILED_RESOURCE_TILE_SIZE_IN_BYTES;
+                SparseMem.ResourceSpaceSize = Uint64{1} << 32; // buffer size limits to number of bits in UINT
+                SparseMem.StandardBlockSize = D3D11_2_TILED_RESOURCE_TILE_SIZE_IN_BYTES;
                 SparseMem.CapFlags =
                     SPARSE_MEMORY_CAP_FLAG_BUFFER |
+                    SPARSE_MEMORY_CAP_FLAG_BUFFER_STANDARD_BLOCK |
                     SPARSE_MEMORY_CAP_FLAG_TEXTURE_2D |
                     SPARSE_MEMORY_CAP_FLAG_STANDARD_2D_BLOCK_SHAPE |
                     SPARSE_MEMORY_CAP_FLAG_ALIASED;
@@ -548,6 +550,7 @@ GraphicsAdapterInfo EngineFactoryD3D11Impl::GetGraphicsAdapterInfo(void*        
                         SPARSE_MEMORY_CAP_FLAG_SHADER_RESOURCE_RESIDENCY |
                         SPARSE_MEMORY_CAP_FLAG_NON_RESIDENT_STRICT;
                 }
+                // AZ TODO: multisample textures
                 if (d3d11TiledResources.TiledResourcesTier >= D3D11_TILED_RESOURCES_TIER_3)
                 {
                     SparseMem.CapFlags |=
