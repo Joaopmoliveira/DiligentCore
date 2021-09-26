@@ -29,6 +29,7 @@
 #include "BottomLevelASVkImpl.hpp"
 #include "RenderDeviceVkImpl.hpp"
 #include "VulkanTypeConversions.hpp"
+#include "VulkanUtilities/VulkanUtils.hpp"
 
 namespace Diligent
 {

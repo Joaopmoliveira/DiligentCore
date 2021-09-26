@@ -26,16 +26,13 @@
  */
 
 #include "VulkanUtilities/VulkanInstance.hpp"
+#include "VulkanUtilities/VulkanUtils.hpp"
+
 #include "APIInfo.h"
 
 #include <vector>
 #include <cstring>
 #include <algorithm>
-
-#if DILIGENT_USE_VOLK
-#    define VOLK_IMPLEMENTATION
-#    include "volk/volk.h"
-#endif
 
 #include "VulkanErrors.hpp"
 #include "VulkanUtilities/VulkanDebug.hpp"
@@ -100,10 +97,10 @@ VulkanInstance::VulkanInstance(const CreateInfo& CI) :
         // Enumerate available layers
         uint32_t LayerCount = 0;
 
-        auto res = vkEnumerateInstanceLayerProperties(&LayerCount, nullptr);
+        auto res = DILIGENT_VK_CALL(EnumerateInstanceLayerProperties(&LayerCount, nullptr));
         CHECK_VK_ERROR_AND_THROW(res, "Failed to query layer count");
         m_Layers.resize(LayerCount);
-        vkEnumerateInstanceLayerProperties(&LayerCount, m_Layers.data());
+        DILIGENT_VK_CALL(EnumerateInstanceLayerProperties(&LayerCount, m_Layers.data()));
         CHECK_VK_ERROR_AND_THROW(res, "Failed to enumerate extensions");
         VERIFY_EXPR(LayerCount == m_Layers.size());
     }
@@ -112,10 +109,10 @@ VulkanInstance::VulkanInstance(const CreateInfo& CI) :
         // Enumerate available extensions
         uint32_t ExtensionCount = 0;
 
-        auto res = vkEnumerateInstanceExtensionProperties(nullptr, &ExtensionCount, nullptr);
+        auto res = DILIGENT_VK_CALL(EnumerateInstanceExtensionProperties(nullptr, &ExtensionCount, nullptr));
         CHECK_VK_ERROR_AND_THROW(res, "Failed to query extension count");
         m_Extensions.resize(ExtensionCount);
-        vkEnumerateInstanceExtensionProperties(nullptr, &ExtensionCount, m_Extensions.data());
+        DILIGENT_VK_CALL(EnumerateInstanceExtensionProperties(nullptr, &ExtensionCount, m_Extensions.data()));
         CHECK_VK_ERROR_AND_THROW(res, "Failed to enumerate extensions");
         VERIFY_EXPR(ExtensionCount == m_Extensions.size());
     }
@@ -192,7 +189,7 @@ VulkanInstance::VulkanInstance(const CreateInfo& CI) :
     if (vkEnumerateInstanceVersion != nullptr && ApiVersion > VK_API_VERSION_1_0)
     {
         uint32_t MaxApiVersion = 0;
-        vkEnumerateInstanceVersion(&MaxApiVersion);
+        DILIGENT_VK_CALL(EnumerateInstanceVersion(&MaxApiVersion));
         ApiVersion = std::min(ApiVersion, MaxApiVersion);
     }
     else
@@ -261,7 +258,7 @@ VulkanInstance::VulkanInstance(const CreateInfo& CI) :
     InstanceCreateInfo.enabledLayerCount       = static_cast<uint32_t>(InstanceLayers.size());
     InstanceCreateInfo.ppEnabledLayerNames     = InstanceLayers.empty() ? nullptr : InstanceLayers.data();
 
-    auto res = vkCreateInstance(&InstanceCreateInfo, m_pVkAllocator, &m_VkInstance);
+    auto res = DILIGENT_VK_CALL(CreateInstance(&InstanceCreateInfo, m_pVkAllocator, &m_VkInstance));
     CHECK_VK_ERROR_AND_THROW(res, "Failed to create Vulkan instance");
 
 #if DILIGENT_USE_VOLK
@@ -289,14 +286,14 @@ VulkanInstance::VulkanInstance(const CreateInfo& CI) :
         // Physical device
         uint32_t PhysicalDeviceCount = 0;
         // Get the number of available physical devices
-        auto err = vkEnumeratePhysicalDevices(m_VkInstance, &PhysicalDeviceCount, nullptr);
+        auto err = DILIGENT_VK_CALL(EnumeratePhysicalDevices(m_VkInstance, &PhysicalDeviceCount, nullptr));
         CHECK_VK_ERROR(err, "Failed to get physical device count");
         if (PhysicalDeviceCount == 0)
             LOG_ERROR_AND_THROW("No physical devices found on the system");
 
         // Enumerate devices
         m_PhysicalDevices.resize(PhysicalDeviceCount);
-        err = vkEnumeratePhysicalDevices(m_VkInstance, &PhysicalDeviceCount, m_PhysicalDevices.data());
+        err = DILIGENT_VK_CALL(EnumeratePhysicalDevices(m_VkInstance, &PhysicalDeviceCount, m_PhysicalDevices.data()));
         CHECK_VK_ERROR(err, "Failed to enumerate physical devices");
         VERIFY_EXPR(m_PhysicalDevices.size() == PhysicalDeviceCount);
     }
@@ -311,7 +308,7 @@ VulkanInstance::~VulkanInstance()
     {
         VulkanUtilities::FreeDebugging(m_VkInstance);
     }
-    vkDestroyInstance(m_VkInstance, m_pVkAllocator);
+    DILIGENT_VK_CALL(DestroyInstance(m_VkInstance, m_pVkAllocator));
 
 #if !DILIGENT_NO_GLSLANG
     Diligent::GLSLangUtils::FinalizeGlslang();
@@ -322,10 +319,10 @@ VkPhysicalDevice VulkanInstance::SelectPhysicalDevice(uint32_t AdapterId) const
 {
     const auto IsGraphicsAndComputeQueueSupported = [](VkPhysicalDevice Device) {
         uint32_t QueueFamilyCount = 0;
-        vkGetPhysicalDeviceQueueFamilyProperties(Device, &QueueFamilyCount, nullptr);
+        DILIGENT_VK_CALL(GetPhysicalDeviceQueueFamilyProperties(Device, &QueueFamilyCount, nullptr));
         VERIFY_EXPR(QueueFamilyCount > 0);
         std::vector<VkQueueFamilyProperties> QueueFamilyProperties(QueueFamilyCount);
-        vkGetPhysicalDeviceQueueFamilyProperties(Device, &QueueFamilyCount, QueueFamilyProperties.data());
+        DILIGENT_VK_CALL(GetPhysicalDeviceQueueFamilyProperties(Device, &QueueFamilyCount, QueueFamilyProperties.data()));
         VERIFY_EXPR(QueueFamilyCount == QueueFamilyProperties.size());
 
         // If an implementation exposes any queue family that supports graphics operations,
@@ -371,7 +368,7 @@ VkPhysicalDevice VulkanInstance::SelectPhysicalDevice(uint32_t AdapterId) const
     if (SelectedPhysicalDevice != VK_NULL_HANDLE)
     {
         VkPhysicalDeviceProperties SelectedDeviceProps;
-        vkGetPhysicalDeviceProperties(SelectedPhysicalDevice, &SelectedDeviceProps);
+        DILIGENT_VK_CALL(GetPhysicalDeviceProperties(SelectedPhysicalDevice, &SelectedDeviceProps));
         LOG_INFO_MESSAGE("Using physical device '", SelectedDeviceProps.deviceName,
                          "', API version ",
                          VK_VERSION_MAJOR(SelectedDeviceProps.apiVersion), '.',

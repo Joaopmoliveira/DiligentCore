@@ -25,6 +25,7 @@
  */
 
 #include "VulkanUtilities/VulkanSyncObjectManager.hpp"
+#include "VulkanUtilities/VulkanUtils.hpp"
 
 namespace VulkanUtilities
 {
@@ -43,7 +44,7 @@ VulkanSyncObjectManager::~VulkanSyncObjectManager()
 
         for (auto vkSem : m_SemaphorePool)
         {
-            vkDestroySemaphore(m_LogicalDevice.GetVkDevice(), vkSem, nullptr);
+            DILIGENT_VK_CALL(DestroySemaphore(m_LogicalDevice.GetVkDevice(), vkSem, nullptr));
         }
     }
     {
@@ -51,7 +52,7 @@ VulkanSyncObjectManager::~VulkanSyncObjectManager()
 
         for (auto vkFence : m_FencePool)
         {
-            vkDestroyFence(m_LogicalDevice.GetVkDevice(), vkFence, nullptr);
+            DILIGENT_VK_CALL(DestroyFence(m_LogicalDevice.GetVkDevice(), vkFence, nullptr));
         }
     }
 }
@@ -75,7 +76,7 @@ void VulkanSyncObjectManager::CreateSemaphores(VulkanRecycledSemaphore* pSemapho
     for (; SemIdx < Count; ++SemIdx)
     {
         VkSemaphore vkSem = VK_NULL_HANDLE;
-        vkCreateSemaphore(m_LogicalDevice.GetVkDevice(), &SemCI, nullptr, &vkSem);
+        DILIGENT_VK_CALL(CreateSemaphore(m_LogicalDevice.GetVkDevice(), &SemCI, nullptr, &vkSem));
         pSemaphores[SemIdx] = VulkanRecycledSemaphore{shared_from_this(), vkSem};
     }
 }
@@ -97,7 +98,7 @@ VulkanRecycledFence VulkanSyncObjectManager::CreateFence()
     VkFence           vkFence = VK_NULL_HANDLE;
 
     FenceCI.sType = VK_STRUCTURE_TYPE_FENCE_CREATE_INFO;
-    vkCreateFence(m_LogicalDevice.GetVkDevice(), &FenceCI, nullptr, &vkFence);
+    DILIGENT_VK_CALL(CreateFence(m_LogicalDevice.GetVkDevice(), &FenceCI, nullptr, &vkFence));
 
     return {shared_from_this(), vkFence};
 }
@@ -107,7 +108,7 @@ void VulkanSyncObjectManager::Recycle(VkSemaphoreType vkSem, bool IsUnsignaled)
     // Can not reuse semaphore in signaled state
     if (!IsUnsignaled)
     {
-        vkDestroySemaphore(m_LogicalDevice.GetVkDevice(), vkSem.Value, nullptr);
+        DILIGENT_VK_CALL(DestroySemaphore(m_LogicalDevice.GetVkDevice(), vkSem.Value, nullptr));
         return;
     }
 
@@ -120,7 +121,7 @@ void VulkanSyncObjectManager::Recycle(VkFenceType vkFence, bool IsUnsignaled)
     if (!IsUnsignaled)
     {
         // Access to vkFence must be externally synchronized, we assume that vkFence is not used anywhere else.
-        vkResetFences(m_LogicalDevice.GetVkDevice(), 1, &vkFence.Value);
+        DILIGENT_VK_CALL(ResetFences(m_LogicalDevice.GetVkDevice(), 1, &vkFence.Value));
     }
 
     std::lock_guard<std::mutex> Lock{m_FencePoolGuard};

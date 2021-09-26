@@ -54,6 +54,7 @@ set(VULKAN_UTILS_INCLUDE
     include/VulkanUtilities/VulkanPhysicalDevice.hpp
     include/VulkanUtilities/VulkanSyncObjectManager.hpp
     include/VulkanUtilities/VulkanHeaders.h
+	include/VulkanUtilities/VulkanUtils.hpp
 )
 
 
@@ -126,6 +127,7 @@ set(VULKAN_UTILS_SRC
     src/VulkanUtilities/VulkanMemoryManager.cpp
     src/VulkanUtilities/VulkanPhysicalDevice.cpp
     src/VulkanUtilities/VulkanSyncObjectManager.cpp
+	src/VulkanUtilities/VulkanUtils.cpp
 )
 
 add_library(Diligent-GraphicsEngineVkInterface INTERFACE)

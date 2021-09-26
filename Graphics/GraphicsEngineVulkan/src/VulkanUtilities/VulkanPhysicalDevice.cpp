@@ -31,6 +31,7 @@
 
 #include "VulkanErrors.hpp"
 #include "VulkanUtilities/VulkanPhysicalDevice.hpp"
+#include "VulkanUtilities/VulkanUtils.hpp"
 
 namespace VulkanUtilities
 {
@@ -48,23 +49,23 @@ VulkanPhysicalDevice::VulkanPhysicalDevice(VkPhysicalDevice      vkDevice,
 {
     VERIFY_EXPR(m_VkDevice != VK_NULL_HANDLE);
 
-    vkGetPhysicalDeviceProperties(m_VkDevice, &m_Properties);
-    vkGetPhysicalDeviceFeatures(m_VkDevice, &m_Features);
-    vkGetPhysicalDeviceMemoryProperties(m_VkDevice, &m_MemoryProperties);
+    DILIGENT_VK_CALL(GetPhysicalDeviceProperties(m_VkDevice, &m_Properties));
+    DILIGENT_VK_CALL(GetPhysicalDeviceFeatures(m_VkDevice, &m_Features));
+    DILIGENT_VK_CALL(GetPhysicalDeviceMemoryProperties(m_VkDevice, &m_MemoryProperties));
     uint32_t QueueFamilyCount = 0;
-    vkGetPhysicalDeviceQueueFamilyProperties(m_VkDevice, &QueueFamilyCount, nullptr);
+    DILIGENT_VK_CALL(GetPhysicalDeviceQueueFamilyProperties(m_VkDevice, &QueueFamilyCount, nullptr));
     VERIFY_EXPR(QueueFamilyCount > 0);
     m_QueueFamilyProperties.resize(QueueFamilyCount);
-    vkGetPhysicalDeviceQueueFamilyProperties(m_VkDevice, &QueueFamilyCount, m_QueueFamilyProperties.data());
+    DILIGENT_VK_CALL(GetPhysicalDeviceQueueFamilyProperties(m_VkDevice, &QueueFamilyCount, m_QueueFamilyProperties.data()));
     VERIFY_EXPR(QueueFamilyCount == m_QueueFamilyProperties.size());
 
     // Get list of supported extensions
     uint32_t ExtensionCount = 0;
-    vkEnumerateDeviceExtensionProperties(m_VkDevice, nullptr, &ExtensionCount, nullptr);
+    DILIGENT_VK_CALL(EnumerateDeviceExtensionProperties(m_VkDevice, nullptr, &ExtensionCount, nullptr));
     if (ExtensionCount > 0)
     {
         m_SupportedExtensions.resize(ExtensionCount);
-        auto res = vkEnumerateDeviceExtensionProperties(m_VkDevice, nullptr, &ExtensionCount, m_SupportedExtensions.data());
+        auto res = DILIGENT_VK_CALL(EnumerateDeviceExtensionProperties(m_VkDevice, nullptr, &ExtensionCount, m_SupportedExtensions.data()));
         VERIFY_EXPR(res == VK_SUCCESS);
         (void)res;
         VERIFY_EXPR(ExtensionCount == m_SupportedExtensions.size());
@@ -313,8 +314,8 @@ VulkanPhysicalDevice::VulkanPhysicalDevice(VkPhysicalDevice      vkDevice,
 
         // Initialize device extension features by current physical device features.
         // Some flags may not be supported by hardware.
-        vkGetPhysicalDeviceFeatures2KHR(m_VkDevice, &Feats2);
-        vkGetPhysicalDeviceProperties2KHR(m_VkDevice, &Props2);
+        DILIGENT_VK_CALL(GetPhysicalDeviceFeatures2KHR(m_VkDevice, &Feats2));
+        DILIGENT_VK_CALL(GetPhysicalDeviceProperties2KHR(m_VkDevice, &Props2));
 
 
         // Check texture formats
@@ -322,7 +323,7 @@ VulkanPhysicalDevice::VulkanPhysicalDevice(VkPhysicalDevice      vkDevice,
         {
             // For compatibility with D3D12, shading rate texture must support R8_UINT format
             VkFormatProperties FmtProps{};
-            vkGetPhysicalDeviceFormatProperties(m_VkDevice, VK_FORMAT_R8_UINT, &FmtProps);
+            DILIGENT_VK_CALL(GetPhysicalDeviceFormatProperties(m_VkDevice, VK_FORMAT_R8_UINT, &FmtProps));
 
             // Disable feature if image format is not supported
             if (!(FmtProps.optimalTilingFeatures & VK_FORMAT_FEATURE_FRAGMENT_SHADING_RATE_ATTACHMENT_BIT_KHR))
@@ -334,7 +335,7 @@ VulkanPhysicalDevice::VulkanPhysicalDevice(VkPhysicalDevice      vkDevice,
         if (m_ExtFeatures.FragmentDensityMap.fragmentDensityMap != VK_FALSE)
         {
             VkFormatProperties FmtProps{};
-            vkGetPhysicalDeviceFormatProperties(m_VkDevice, VK_FORMAT_R8G8_UNORM, &FmtProps);
+            DILIGENT_VK_CALL(GetPhysicalDeviceFormatProperties(m_VkDevice, VK_FORMAT_R8G8_UNORM, &FmtProps));
 
             // Disable feature if image format is not supported
             if (!(FmtProps.optimalTilingFeatures & VK_FORMAT_FEATURE_FRAGMENT_DENSITY_MAP_BIT_EXT))
@@ -427,7 +428,7 @@ bool VulkanPhysicalDevice::IsExtensionSupported(const char* ExtensionName) const
 bool VulkanPhysicalDevice::CheckPresentSupport(HardwareQueueIndex queueFamilyIndex, VkSurfaceKHR VkSurface) const
 {
     VkBool32 PresentSupport = VK_FALSE;
-    vkGetPhysicalDeviceSurfaceSupportKHR(m_VkDevice, queueFamilyIndex, VkSurface, &PresentSupport);
+    DILIGENT_VK_CALL(GetPhysicalDeviceSurfaceSupportKHR(m_VkDevice, queueFamilyIndex, VkSurface, &PresentSupport));
     return PresentSupport == VK_TRUE;
 }
 
@@ -481,7 +482,7 @@ uint32_t VulkanPhysicalDevice::GetMemoryTypeIndex(uint32_t              memoryTy
 VkFormatProperties VulkanPhysicalDevice::GetPhysicalDeviceFormatProperties(VkFormat imageFormat) const
 {
     VkFormatProperties formatProperties;
-    vkGetPhysicalDeviceFormatProperties(m_VkDevice, imageFormat, &formatProperties);
+    DILIGENT_VK_CALL(GetPhysicalDeviceFormatProperties(m_VkDevice, imageFormat, &formatProperties));
     return formatProperties;
 }
 

@@ -27,6 +27,7 @@
 #include <sstream>
 
 #include "VulkanUtilities/VulkanCommandBuffer.hpp"
+#include "VulkanUtilities/VulkanUtils.hpp"
 
 namespace VulkanUtilities
 {
@@ -351,16 +352,17 @@ void VulkanCommandBuffer::TransitionImageLayout(VkCommandBuffer                C
     // However, note that access scopes are not affected in this way - only the precise stages specified
     // are considered part of each access scope.  (6.1.2)
 
-    vkCmdPipelineBarrier(CmdBuffer,
-                         SrcStages,  // must not be 0
-                         DestStages, // must not be 0
-                         0,          // a bitmask specifying how execution and memory dependencies are formed
-                         0,          // memoryBarrierCount
-                         nullptr,    // pMemoryBarriers
-                         0,          // bufferMemoryBarrierCount
-                         nullptr,    // pBufferMemoryBarriers
-                         1,
-                         &ImgBarrier);
+    DILIGENT_VK_CALL(CmdPipelineBarrier( CmdBuffer,
+                     SrcStages,  // must not be 0
+                     DestStages, // must not be 0
+                     0,          // a bitmask specifying how execution and memory dependencies are formed
+                     0,          // memoryBarrierCount
+                     nullptr,    // pMemoryBarriers
+                     0,          // bufferMemoryBarrierCount
+                     nullptr,    // pBufferMemoryBarriers
+                     1,
+                     &ImgBarrier));
+
     // Each element of pMemoryBarriers, pBufferMemoryBarriers and pImageMemoryBarriers must not
     // have any access flag included in its srcAccessMask member if that bit is not supported by
     // any of the pipeline stages in srcStageMask.
@@ -410,7 +412,7 @@ void VulkanCommandBuffer::BufferMemoryBarrier(VkCommandBuffer      CmdBuffer,
     DestStages &= SupportedStagesMask;
     VERIFY(SrcStages != 0 && DestStages != 0, "Stage mask must not be 0");
 
-    vkCmdPipelineBarrier(CmdBuffer,
+    DILIGENT_VK_CALL(CmdPipelineBarrier(CmdBuffer,
                          SrcStages,    // must not be 0
                          DestStages,   // must not be 0
                          0,            // a bitmask specifying how execution and memory dependencies are formed
@@ -419,7 +421,7 @@ void VulkanCommandBuffer::BufferMemoryBarrier(VkCommandBuffer      CmdBuffer,
                          1,            // bufferMemoryBarrierCount
                          &BuffBarrier, // pBufferMemoryBarriers
                          0,
-                         nullptr);
+                         nullptr));
 }
 
 void VulkanCommandBuffer::ASMemoryBarrier(VkCommandBuffer      CmdBuffer,
@@ -460,7 +462,7 @@ void VulkanCommandBuffer::ASMemoryBarrier(VkCommandBuffer      CmdBuffer,
     DestStages &= (SupportedStagesMask & RayTracingStagesMask);
     VERIFY(SrcStages != 0 && DestStages != 0, "Stage mask must not be 0");
 
-    vkCmdPipelineBarrier(CmdBuffer,
+    DILIGENT_VK_CALL(CmdPipelineBarrier(CmdBuffer,
                          SrcStages,  // must not be 0
                          DestStages, // must not be 0
                          0,          // a bitmask specifying how execution and memory dependencies are formed
@@ -469,7 +471,7 @@ void VulkanCommandBuffer::ASMemoryBarrier(VkCommandBuffer      CmdBuffer,
                          0,
                          nullptr,
                          0,
-                         nullptr);
+                         nullptr));
 }
 
 void VulkanCommandBuffer::FlushBarriers()

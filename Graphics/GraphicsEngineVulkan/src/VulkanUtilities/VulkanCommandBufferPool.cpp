@@ -31,6 +31,7 @@
 #include "Errors.hpp"
 #include "DebugUtilities.hpp"
 #include "VulkanErrors.hpp"
+#include "VulkanUtilities/VulkanUtils.hpp"
 
 namespace VulkanUtilities
 {
@@ -73,11 +74,12 @@ VkCommandBuffer VulkanCommandBufferPool::GetCommandBuffer(const char* DebugName)
         if (!m_CmdBuffers.empty())
         {
             CmdBuffer = m_CmdBuffers.front();
-            auto err  = vkResetCommandBuffer(
+            
+            auto err  = DILIGENT_VK_CALL(ResetCommandBuffer(
                 CmdBuffer,
                 0 // VK_COMMAND_BUFFER_RESET_RELEASE_RESOURCES_BIT -  specifies that most or all memory resources currently
                   // owned by the command buffer should be returned to the parent command pool.
-            );
+            ));
             DEV_CHECK_ERR(err == VK_SUCCESS, "Failed to reset command buffer");
             (void)err;
             m_CmdBuffers.pop_front();
@@ -108,7 +110,7 @@ VkCommandBuffer VulkanCommandBufferPool::GetCommandBuffer(const char* DebugName)
                                                                           // and recorded again between each submission.
     CmdBuffBeginInfo.pInheritanceInfo = nullptr;                          // Ignored for a primary command buffer
 
-    auto err = vkBeginCommandBuffer(CmdBuffer, &CmdBuffBeginInfo);
+    auto err = DILIGENT_VK_CALL(BeginCommandBuffer(CmdBuffer, &CmdBuffBeginInfo));
     DEV_CHECK_ERR(err == VK_SUCCESS, "Failed to begin command buffer");
     (void)err;
 #ifdef DILIGENT_DEVELOPMENT
