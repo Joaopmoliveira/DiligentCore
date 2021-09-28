@@ -44,6 +44,7 @@
 #include "GraphicsAccessories.hpp"
 #include "GenerateMipsVkHelper.hpp"
 #include "QueryManagerVk.hpp"
+#include "VulkanUtilities/VulkanUtils.hpp"
 
 namespace Diligent
 {
@@ -1005,7 +1006,7 @@ void DeviceContextVkImpl::GetTileSize(Uint32& TileSizeX, Uint32& TileSizeY)
     {
         const auto& LogicalDevice = m_pDevice->GetLogicalDevice();
         VkExtent2D  Granularity   = {};
-        vkGetRenderAreaGranularity(LogicalDevice.GetVkDevice(), m_vkRenderPass, &Granularity);
+        DILIGENT_VK_CALL(GetRenderAreaGranularity(LogicalDevice.GetVkDevice(), m_vkRenderPass, &Granularity));
 
         TileSizeX = Granularity.width;
         TileSizeY = Granularity.height;

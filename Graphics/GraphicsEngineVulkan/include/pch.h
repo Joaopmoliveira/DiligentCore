@@ -46,7 +46,7 @@
 #include <exception>
 #include <algorithm>
 
-#include "VulkanUtilities/VulkanHeaders.h"
+#include "VulkanUtilities/VulkanUtils.hpp"
 
 #include "GraphicsTypes.h"
 

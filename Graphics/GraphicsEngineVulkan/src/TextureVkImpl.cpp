@@ -34,6 +34,7 @@
 #include "EngineMemory.h"
 #include "StringTools.hpp"
 #include "GraphicsAccessories.hpp"
+#include "VulkanUtilities/VulkanUtils.hpp"
 
 namespace Diligent
 {
@@ -409,9 +410,9 @@ void TextureVkImpl::InitializeTextureContent(const TextureData&          InitDat
 
     // Copy commands MUST be recorded outside of a render pass instance. This is OK here
     // as copy will be the only command in the cmd buffer
-    vkCmdCopyBufferToImage(vkCmdBuff, StagingBuffer, m_VulkanImage,
+    DILIGENT_VK_CALL(CmdCopyBufferToImage(vkCmdBuff, StagingBuffer, m_VulkanImage,
                            CurrentLayout, // dstImageLayout must be VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL or VK_IMAGE_LAYOUT_GENERAL (18.4)
-                           static_cast<uint32_t>(Regions.size()), Regions.data());
+                           static_cast<uint32_t>(Regions.size()), Regions.data()));
 
     GetDevice()->ExecuteAndDisposeTransientCmdBuff(CmdQueueInd, vkCmdBuff, std::move(CmdPool));
 

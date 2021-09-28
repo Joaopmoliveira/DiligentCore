@@ -31,6 +31,7 @@
 #include "CommandQueueVkImpl.hpp"
 #include "RenderDeviceVkImpl.hpp"
 #include "VulkanUtilities/VulkanDebug.hpp"
+#include "VulkanUtilities/VulkanUtils.hpp"
 
 namespace Diligent
 {
@@ -185,8 +186,8 @@ Uint64 CommandQueueVkImpl::Submit(const VkSubmitInfo& InSubmitInfo)
          SubmitInfo.signalSemaphoreCount != 0) ?
         1 :
         0;
-
-    auto err = vkQueueSubmit(m_VkQueue, SubmitCount, &SubmitInfo, NewSyncPoint->GetFence());
+    
+    auto err = DILIGENT_VK_CALL(QueueSubmit(m_VkQueue, SubmitCount, &SubmitInfo, NewSyncPoint->GetFence()));
     DEV_CHECK_ERR(err == VK_SUCCESS, "Failed to submit command buffer to the command queue");
     (void)err;
 
@@ -228,7 +229,7 @@ Uint64 CommandQueueVkImpl::WaitForIdle()
     // Update last completed fence value to unlock all waiting events.
     const auto FenceValue = m_NextFenceValue.fetch_add(1);
 
-    vkQueueWaitIdle(m_VkQueue);
+    DILIGENT_VK_CALL(QueueWaitIdle(m_VkQueue));
     // For some reason after idling the queue not all fences are signaled
     m_pFence->Wait(UINT64_MAX);
     m_pFence->Reset(FenceValue);
@@ -247,7 +248,7 @@ void CommandQueueVkImpl::EnqueueSignalFence(VkFence vkFence)
 
     std::lock_guard<std::mutex> Lock{m_QueueMutex};
 
-    auto err = vkQueueSubmit(m_VkQueue, 0, nullptr, vkFence);
+    auto err = DILIGENT_VK_CALL(QueueSubmit(m_VkQueue, 0, nullptr, vkFence));
     DEV_CHECK_ERR(err == VK_SUCCESS, "Failed to submit fence signal command to the command queue");
     (void)err;
 }
@@ -279,7 +280,7 @@ void CommandQueueVkImpl::InternalSignalSemaphore(VkSemaphore vkTimelineSemaphore
     SubmitInfo.signalSemaphoreCount = 1;
     SubmitInfo.pSignalSemaphores    = &vkTimelineSemaphore;
 
-    auto err = vkQueueSubmit(m_VkQueue, 1, &SubmitInfo, VK_NULL_HANDLE);
+    auto err = DILIGENT_VK_CALL(QueueSubmit(m_VkQueue, 1, &SubmitInfo, VK_NULL_HANDLE));
     DEV_CHECK_ERR(err == VK_SUCCESS, "Failed to submit timeline semaphore signal command to the command queue");
     (void)err;
 }
@@ -287,7 +288,7 @@ void CommandQueueVkImpl::InternalSignalSemaphore(VkSemaphore vkTimelineSemaphore
 VkResult CommandQueueVkImpl::Present(const VkPresentInfoKHR& PresentInfo)
 {
     std::lock_guard<std::mutex> Lock{m_QueueMutex};
-    return vkQueuePresentKHR(m_VkQueue, &PresentInfo);
+    return DILIGENT_VK_CALL(QueuePresentKHR(m_VkQueue, &PresentInfo));
 }
 
 } // namespace Diligent

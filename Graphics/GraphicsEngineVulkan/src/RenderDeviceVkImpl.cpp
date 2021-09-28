@@ -49,6 +49,7 @@
 #include "VulkanTypeConversions.hpp"
 #include "EngineMemory.h"
 #include "QueryManagerVk.hpp"
+#include "VulkanUtilities/VulkanUtils.hpp"
 
 namespace Diligent
 {
@@ -258,7 +259,7 @@ void RenderDeviceVkImpl::AllocateTransientCmdPool(SoftwareQueueIndex            
                                                                           // and recorded again between each submission.
     CmdBuffBeginInfo.pInheritanceInfo = nullptr;                          // Ignored for a primary command buffer
 
-    auto err = vkBeginCommandBuffer(vkCmdBuff, &CmdBuffBeginInfo);
+    auto err = DILIGENT_VK_CALL(BeginCommandBuffer(vkCmdBuff, &CmdBuffBeginInfo));
     DEV_CHECK_ERR(err == VK_SUCCESS, "vkBeginCommandBuffer() failed");
     (void)err;
 }
@@ -270,7 +271,7 @@ void RenderDeviceVkImpl::ExecuteAndDisposeTransientCmdBuff(SoftwareQueueIndex   
 {
     VERIFY_EXPR(vkCmdBuff != VK_NULL_HANDLE);
 
-    auto err = vkEndCommandBuffer(vkCmdBuff);
+    auto err = DILIGENT_VK_CALL(EndCommandBuffer(vkCmdBuff));
     DEV_CHECK_ERR(err == VK_SUCCESS, "Failed to end command buffer");
     (void)err;
 
@@ -450,8 +451,8 @@ void RenderDeviceVkImpl::TestTextureFormat(TEXTURE_FORMAT TexFormat)
     auto CheckFormatProperties =
         [vkPhysicalDevice](VkFormat vkFmt, VkImageType vkImgType, VkImageUsageFlags vkUsage, VkImageFormatProperties& ImgFmtProps) //
     {
-        auto err = vkGetPhysicalDeviceImageFormatProperties(vkPhysicalDevice, vkFmt, vkImgType, VK_IMAGE_TILING_OPTIMAL,
-                                                            vkUsage, 0, &ImgFmtProps);
+        auto err = DILIGENT_VK_CALL(GetPhysicalDeviceImageFormatProperties(vkPhysicalDevice, vkFmt, vkImgType, VK_IMAGE_TILING_OPTIMAL,
+                                                            vkUsage, 0, &ImgFmtProps));
         return err == VK_SUCCESS;
     };
 
@@ -465,7 +466,7 @@ void RenderDeviceVkImpl::TestTextureFormat(TEXTURE_FORMAT TexFormat)
         {
             VkFormat           vkSrvFormat   = TexFormatToVkFormat(SRVFormat);
             VkFormatProperties vkSrvFmtProps = {};
-            vkGetPhysicalDeviceFormatProperties(vkPhysicalDevice, vkSrvFormat, &vkSrvFmtProps);
+            DILIGENT_VK_CALL(GetPhysicalDeviceFormatProperties(vkPhysicalDevice, vkSrvFormat, &vkSrvFmtProps));
 
             if (vkSrvFmtProps.optimalTilingFeatures & VK_FORMAT_FEATURE_SAMPLED_IMAGE_BIT)
             {
@@ -483,8 +484,8 @@ void RenderDeviceVkImpl::TestTextureFormat(TEXTURE_FORMAT TexFormat)
                     TexFormatInfo.Dimensions |= RESOURCE_DIMENSION_SUPPORT_TEX_3D;
 
                 {
-                    auto err = vkGetPhysicalDeviceImageFormatProperties(vkPhysicalDevice, vkSrvFormat, VK_IMAGE_TYPE_2D, VK_IMAGE_TILING_OPTIMAL,
-                                                                        VK_IMAGE_USAGE_SAMPLED_BIT, VK_IMAGE_CREATE_CUBE_COMPATIBLE_BIT, &ImgFmtProps);
+                    auto err = DILIGENT_VK_CALL(GetPhysicalDeviceImageFormatProperties(vkPhysicalDevice, vkSrvFormat, VK_IMAGE_TYPE_2D, VK_IMAGE_TILING_OPTIMAL,
+                                                                        VK_IMAGE_USAGE_SAMPLED_BIT, VK_IMAGE_CREATE_CUBE_COMPATIBLE_BIT, &ImgFmtProps));
                     if (err == VK_SUCCESS)
                         TexFormatInfo.Dimensions |= RESOURCE_DIMENSION_SUPPORT_TEX_CUBE | RESOURCE_DIMENSION_SUPPORT_TEX_CUBE_ARRAY;
                 }
@@ -498,7 +499,7 @@ void RenderDeviceVkImpl::TestTextureFormat(TEXTURE_FORMAT TexFormat)
         {
             VkFormat           vkRtvFormat   = TexFormatToVkFormat(RTVFormat);
             VkFormatProperties vkRtvFmtProps = {};
-            vkGetPhysicalDeviceFormatProperties(vkPhysicalDevice, vkRtvFormat, &vkRtvFmtProps);
+            DILIGENT_VK_CALL(GetPhysicalDeviceFormatProperties(vkPhysicalDevice, vkRtvFormat, &vkRtvFmtProps));
 
             if (vkRtvFmtProps.optimalTilingFeatures & VK_FORMAT_FEATURE_COLOR_ATTACHMENT_BIT)
             {
@@ -518,7 +519,7 @@ void RenderDeviceVkImpl::TestTextureFormat(TEXTURE_FORMAT TexFormat)
         {
             VkFormat           vkDsvFormat   = TexFormatToVkFormat(DSVFormat);
             VkFormatProperties vkDsvFmtProps = {};
-            vkGetPhysicalDeviceFormatProperties(vkPhysicalDevice, vkDsvFormat, &vkDsvFmtProps);
+            DILIGENT_VK_CALL(GetPhysicalDeviceFormatProperties(vkPhysicalDevice, vkDsvFormat, &vkDsvFmtProps));
             if (vkDsvFmtProps.optimalTilingFeatures & VK_FORMAT_FEATURE_DEPTH_STENCIL_ATTACHMENT_BIT)
             {
                 VkImageFormatProperties ImgFmtProps = {};
@@ -539,7 +540,7 @@ void RenderDeviceVkImpl::TestTextureFormat(TEXTURE_FORMAT TexFormat)
         {
             VkFormat           vkUavFormat   = TexFormatToVkFormat(UAVFormat);
             VkFormatProperties vkUavFmtProps = {};
-            vkGetPhysicalDeviceFormatProperties(vkPhysicalDevice, vkUavFormat, &vkUavFmtProps);
+            DILIGENT_VK_CALL(GetPhysicalDeviceFormatProperties(vkPhysicalDevice, vkUavFormat, &vkUavFmtProps));
             if (vkUavFmtProps.optimalTilingFeatures & VK_FORMAT_FEATURE_STORAGE_IMAGE_BIT)
             {
                 VkImageFormatProperties ImgFmtProps = {};

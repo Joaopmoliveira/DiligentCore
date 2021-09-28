@@ -32,6 +32,7 @@
 #include "TextureVkImpl.hpp"
 #include "VulkanTypeConversions.hpp"
 #include "EngineMemory.h"
+#include "VulkanUtilities/VulkanUtils.hpp"
 
 namespace Diligent
 {
@@ -63,7 +64,7 @@ void SwapChainVkImpl::CreateSurface()
 {
     if (m_VkSurface != VK_NULL_HANDLE)
     {
-        vkDestroySurfaceKHR(m_VulkanInstance->GetVkInstance(), m_VkSurface, NULL);
+        DILIGENT_VK_CALL(DestroySurfaceKHR(m_VulkanInstance->GetVkInstance(), m_VkSurface, NULL));
         m_VkSurface = VK_NULL_HANDLE;
     }
 
@@ -77,7 +78,7 @@ void SwapChainVkImpl::CreateSurface()
         surfaceCreateInfo.hinstance = GetModuleHandle(NULL);
         surfaceCreateInfo.hwnd      = (HWND)m_Window.hWnd;
 
-        err = vkCreateWin32SurfaceKHR(m_VulkanInstance->GetVkInstance(), &surfaceCreateInfo, nullptr, &m_VkSurface);
+        err = DILIGENT_VK_CALL(CreateWin32SurfaceKHR(m_VulkanInstance->GetVkInstance(), &surfaceCreateInfo, nullptr, &m_VkSurface));
     }
 #elif defined(VK_USE_PLATFORM_ANDROID_KHR)
     if (m_Window.pAWindow != nullptr)
@@ -86,7 +87,7 @@ void SwapChainVkImpl::CreateSurface()
         surfaceCreateInfo.sType  = VK_STRUCTURE_TYPE_ANDROID_SURFACE_CREATE_INFO_KHR;
         surfaceCreateInfo.window = (ANativeWindow*)m_Window.pAWindow;
 
-        err = vkCreateAndroidSurfaceKHR(m_VulkanInstance->GetVkInstance(), &surfaceCreateInfo, NULL, &m_VkSurface);
+        err = DILIGENT_VK_CALL(CreateAndroidSurfaceKHR(m_VulkanInstance->GetVkInstance(), &surfaceCreateInfo, NULL, &m_VkSurface));
     }
 #elif defined(VK_USE_PLATFORM_IOS_MVK)
     if (m_Window.pCALayer != nullptr)
@@ -95,7 +96,7 @@ void SwapChainVkImpl::CreateSurface()
         surfaceCreateInfo.sType = VK_STRUCTURE_TYPE_IOS_SURFACE_CREATE_INFO_MVK;
         surfaceCreateInfo.pView = m_Window.pCALayer;
 
-        err = vkCreateIOSSurfaceMVK(m_VulkanInstance->GetVkInstance(), &surfaceCreateInfo, nullptr, &m_VkSurface);
+        err = DILIGENT_VK_CALL(CreateIOSSurfaceMVK(m_VulkanInstance->GetVkInstance(), &surfaceCreateInfo, nullptr, &m_VkSurface));
     }
 #elif defined(VK_USE_PLATFORM_MACOS_MVK)
     if (m_Window.pNSView != nullptr)
@@ -104,7 +105,7 @@ void SwapChainVkImpl::CreateSurface()
         surfaceCreateInfo.sType = VK_STRUCTURE_TYPE_MACOS_SURFACE_CREATE_INFO_MVK;
         surfaceCreateInfo.pView = m_Window.pNSView;
 
-        err = vkCreateMacOSSurfaceMVK(m_VulkanInstance->GetVkInstance(), &surfaceCreateInfo, NULL, &m_VkSurface);
+        err = DILIGENT_VK_CALL(CreateMacOSSurfaceMVK(m_VulkanInstance->GetVkInstance(), &surfaceCreateInfo, NULL, &m_VkSurface));
     }
 #elif defined(VK_USE_PLATFORM_WAYLAND_KHR)
     if (m_Window.pDisplay != nullptr)
@@ -114,7 +115,7 @@ void SwapChainVkImpl::CreateSurface()
         surfaceCreateInfo.display = reinterpret_cast<struct wl_display*>(m_Window.pDisplay);
         surfaceCreateInfo.Surface = reinterpret_cast<struct wl_surface*>(nullptr);
 
-        err = vkCreateWaylandSurfaceKHR(m_VulkanInstance->GetVkInstance(), &surfaceCreateInfo, nullptr, &m_VkSurface);
+        err = DILIGENT_VK_CALL(CreateWaylandSurfaceKHR(m_VulkanInstance->GetVkInstance(), &surfaceCreateInfo, nullptr, &m_VkSurface));
     }
 #elif defined(VK_USE_PLATFORM_XCB_KHR) || defined(VK_USE_PLATFORM_XLIB_KHR)
 
@@ -126,7 +127,7 @@ void SwapChainVkImpl::CreateSurface()
         surfaceCreateInfo.connection = reinterpret_cast<xcb_connection_t*>(m_Window.pXCBConnection);
         surfaceCreateInfo.window     = m_Window.WindowId;
 
-        err = vkCreateXcbSurfaceKHR(m_VulkanInstance->GetVkInstance(), &surfaceCreateInfo, nullptr, &m_VkSurface);
+        err = DILIGENT_VK_CALL(CreateXcbSurfaceKHR(m_VulkanInstance->GetVkInstance(), &surfaceCreateInfo, nullptr, &m_VkSurface));
     }
 #    endif
 
@@ -138,7 +139,7 @@ void SwapChainVkImpl::CreateSurface()
         surfaceCreateInfo.dpy    = reinterpret_cast<Display*>(m_Window.pDisplay);
         surfaceCreateInfo.window = m_Window.WindowId;
 
-        err = vkCreateXlibSurfaceKHR(m_VulkanInstance->GetVkInstance(), &surfaceCreateInfo, nullptr, &m_VkSurface);
+        err = DILIGENT_VK_CALL(CreateXlibSurfaceKHR(m_VulkanInstance->GetVkInstance(), &surfaceCreateInfo, nullptr, &m_VkSurface));
     }
 #    endif
 
@@ -173,11 +174,11 @@ void SwapChainVkImpl::CreateVulkanSwapChain()
     // Get the list of VkFormats that are supported:
     uint32_t formatCount = 0;
 
-    auto err = vkGetPhysicalDeviceSurfaceFormatsKHR(vkDeviceHandle, m_VkSurface, &formatCount, NULL);
+    auto err = DILIGENT_VK_CALL(GetPhysicalDeviceSurfaceFormatsKHR(vkDeviceHandle, m_VkSurface, &formatCount, NULL));
     CHECK_VK_ERROR_AND_THROW(err, "Failed to query number of supported formats");
     VERIFY_EXPR(formatCount > 0);
     std::vector<VkSurfaceFormatKHR> SupportedFormats(formatCount);
-    err = vkGetPhysicalDeviceSurfaceFormatsKHR(vkDeviceHandle, m_VkSurface, &formatCount, SupportedFormats.data());
+    err = DILIGENT_VK_CALL(GetPhysicalDeviceSurfaceFormatsKHR(vkDeviceHandle, m_VkSurface, &formatCount, SupportedFormats.data()));
     CHECK_VK_ERROR_AND_THROW(err, "Failed to query supported format properties");
     VERIFY_EXPR(formatCount == SupportedFormats.size());
     m_VkColorFormat = TexFormatToVkFormat(m_SwapChainDesc.ColorBufferFormat);
@@ -244,16 +245,16 @@ void SwapChainVkImpl::CreateVulkanSwapChain()
 
     VkSurfaceCapabilitiesKHR surfCapabilities = {};
 
-    err = vkGetPhysicalDeviceSurfaceCapabilitiesKHR(vkDeviceHandle, m_VkSurface, &surfCapabilities);
+    err = DILIGENT_VK_CALL(GetPhysicalDeviceSurfaceCapabilitiesKHR(vkDeviceHandle, m_VkSurface, &surfCapabilities));
     CHECK_VK_ERROR_AND_THROW(err, "Failed to query physical device surface capabilities");
 
     uint32_t presentModeCount = 0;
 
-    err = vkGetPhysicalDeviceSurfacePresentModesKHR(vkDeviceHandle, m_VkSurface, &presentModeCount, NULL);
+    err = DILIGENT_VK_CALL(GetPhysicalDeviceSurfacePresentModesKHR(vkDeviceHandle, m_VkSurface, &presentModeCount, NULL));
     CHECK_VK_ERROR_AND_THROW(err, "Failed to query surface present mode count");
     VERIFY_EXPR(presentModeCount > 0);
     std::vector<VkPresentModeKHR> presentModes(presentModeCount);
-    err = vkGetPhysicalDeviceSurfacePresentModesKHR(vkDeviceHandle, m_VkSurface, &presentModeCount, presentModes.data());
+    err = DILIGENT_VK_CALL(GetPhysicalDeviceSurfacePresentModesKHR(vkDeviceHandle, m_VkSurface, &presentModeCount, presentModes.data()));
     CHECK_VK_ERROR_AND_THROW(err, "Failed to query surface present modes");
     VERIFY_EXPR(presentModeCount == presentModes.size());
 
@@ -466,18 +467,18 @@ void SwapChainVkImpl::CreateVulkanSwapChain()
     const auto& LogicalDevice = pRenderDeviceVk->GetLogicalDevice();
     auto        vkDevice      = pRenderDeviceVk->GetVkDevice();
 
-    err = vkCreateSwapchainKHR(vkDevice, &swapchain_ci, NULL, &m_VkSwapChain);
+    err = DILIGENT_VK_CALL(CreateSwapchainKHR(vkDevice, &swapchain_ci, NULL, &m_VkSwapChain));
     CHECK_VK_ERROR_AND_THROW(err, "Failed to create Vulkan swapchain");
 
     if (oldSwapchain != VK_NULL_HANDLE)
     {
-        vkDestroySwapchainKHR(vkDevice, oldSwapchain, NULL);
+        DILIGENT_VK_CALL(DestroySwapchainKHR(vkDevice, oldSwapchain, NULL));
         oldSwapchain = VK_NULL_HANDLE;
     }
 
     uint32_t swapchainImageCount = 0;
 
-    err = vkGetSwapchainImagesKHR(vkDevice, m_VkSwapChain, &swapchainImageCount, NULL);
+    err = DILIGENT_VK_CALL(GetSwapchainImagesKHR(vkDevice, m_VkSwapChain, &swapchainImageCount, NULL));
     CHECK_VK_ERROR_AND_THROW(err, "Failed to request swap chain image count");
     VERIFY_EXPR(swapchainImageCount > 0);
     if (swapchainImageCount != m_SwapChainDesc.BufferCount)
@@ -535,7 +536,7 @@ SwapChainVkImpl::~SwapChainVkImpl()
 
     if (m_VkSurface != VK_NULL_HANDLE)
     {
-        vkDestroySurfaceKHR(m_VulkanInstance->GetVkInstance(), m_VkSurface, NULL);
+        DILIGENT_VK_CALL(DestroySurfaceKHR(m_VulkanInstance->GetVkInstance(), m_VkSurface, NULL));
     }
 }
 
@@ -547,7 +548,7 @@ void SwapChainVkImpl::InitBuffersAndViews()
 #ifdef DILIGENT_DEBUG
     {
         uint32_t swapchainImageCount = 0;
-        auto     err                 = vkGetSwapchainImagesKHR(LogicalVkDevice, m_VkSwapChain, &swapchainImageCount, NULL);
+        auto     err                 = DILIGENT_VK_CALL(GetSwapchainImagesKHR(LogicalVkDevice, m_VkSwapChain, &swapchainImageCount, NULL));
         VERIFY_EXPR(err == VK_SUCCESS);
         VERIFY(swapchainImageCount == m_SwapChainDesc.BufferCount, "Unexpected swap chain buffer count");
     }
@@ -559,7 +560,7 @@ void SwapChainVkImpl::InitBuffersAndViews()
 
     uint32_t             swapchainImageCount = m_SwapChainDesc.BufferCount;
     std::vector<VkImage> swapchainImages(swapchainImageCount);
-    auto                 err = vkGetSwapchainImagesKHR(LogicalVkDevice, m_VkSwapChain, &swapchainImageCount, swapchainImages.data());
+    auto                 err = DILIGENT_VK_CALL(GetSwapchainImagesKHR(LogicalVkDevice, m_VkSwapChain, &swapchainImageCount, swapchainImages.data()));
     CHECK_VK_ERROR_AND_THROW(err, "Failed to get swap chain images");
     VERIFY_EXPR(swapchainImageCount == swapchainImages.size());
 
@@ -651,7 +652,7 @@ VkResult SwapChainVkImpl::AcquireNextImage(DeviceContextVkImpl* pDeviceCtxVk)
     VkFence     ImageAcquiredFence     = m_ImageAcquiredFences[m_SemaphoreIndex];
     VkSemaphore ImageAcquiredSemaphore = m_ImageAcquiredSemaphores[m_SemaphoreIndex]->Get();
 
-    auto res = vkAcquireNextImageKHR(LogicalDevice.GetVkDevice(), m_VkSwapChain, UINT64_MAX, ImageAcquiredSemaphore, ImageAcquiredFence, &m_BackBufferIndex);
+    auto res = DILIGENT_VK_CALL(AcquireNextImageKHR(LogicalDevice.GetVkDevice(), m_VkSwapChain, UINT64_MAX, ImageAcquiredSemaphore, ImageAcquiredFence, &m_BackBufferIndex));
 
     m_ImageAcquiredFenceSubmitted[m_SemaphoreIndex] = (res == VK_SUCCESS);
     if (res == VK_SUCCESS)
@@ -831,7 +832,7 @@ void SwapChainVkImpl::ReleaseSwapChainResources(DeviceContextVkImpl* pImmediateC
 
     if (DestroyVkSwapChain)
     {
-        vkDestroySwapchainKHR(pDeviceVk->GetVkDevice(), m_VkSwapChain, NULL);
+        DILIGENT_VK_CALL(DestroySwapchainKHR(pDeviceVk->GetVkDevice(), m_VkSwapChain, NULL));
         m_VkSwapChain = VK_NULL_HANDLE;
     }
 }
@@ -848,13 +849,13 @@ void SwapChainVkImpl::RecreateVulkanSwapchain(DeviceContextVkImpl* pImmediateCtx
 
         VkSurfaceCapabilitiesKHR surfCapabilities;
         // Call vkGetPhysicalDeviceSurfaceCapabilitiesKHR only to check the return code
-        auto err = vkGetPhysicalDeviceSurfaceCapabilitiesKHR(vkDeviceHandle, m_VkSurface, &surfCapabilities);
+        auto err = DILIGENT_VK_CALL(GetPhysicalDeviceSurfaceCapabilitiesKHR(vkDeviceHandle, m_VkSurface, &surfCapabilities));
         if (err == VK_ERROR_SURFACE_LOST_KHR)
         {
             // Destroy the swap chain associated with the surface
             if (m_VkSwapChain != VK_NULL_HANDLE)
             {
-                vkDestroySwapchainKHR(pDeviceVk->GetVkDevice(), m_VkSwapChain, NULL);
+                DILIGENT_VK_CALL(DestroySwapchainKHR(pDeviceVk->GetVkDevice(), m_VkSwapChain, NULL));
                 m_VkSwapChain = VK_NULL_HANDLE;
             }
 
@@ -881,7 +882,7 @@ void SwapChainVkImpl::Resize(Uint32 NewWidth, Uint32 NewHeight, SURFACE_TRANSFOR
 
         VkSurfaceCapabilitiesKHR surfCapabilities = {};
 
-        auto err = vkGetPhysicalDeviceSurfaceCapabilitiesKHR(vkDeviceHandle, m_VkSurface, &surfCapabilities);
+        auto err = DILIGENT_VK_CALL(GetPhysicalDeviceSurfaceCapabilitiesKHR(vkDeviceHandle, m_VkSurface, &surfCapabilities));
         if (err == VK_SUCCESS)
         {
             if (m_CurrentSurfaceTransform != surfCapabilities.currentTransform)

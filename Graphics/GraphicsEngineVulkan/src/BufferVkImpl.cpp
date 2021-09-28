@@ -36,6 +36,7 @@
 #include "StringTools.hpp"
 #include "VulkanUtilities/VulkanDebug.hpp"
 #include "VulkanUtilities/VulkanCommandBuffer.hpp"
+#include "VulkanUtilities/VulkanUtils.hpp"
 
 namespace Diligent
 {
@@ -399,7 +400,7 @@ BufferVkImpl::BufferVkImpl(IReferenceCounters*        pRefCounters,
                 BuffCopy.srcOffset = 0;
                 BuffCopy.dstOffset = 0;
                 BuffCopy.size      = VkBuffCI.size;
-                vkCmdCopyBuffer(vkCmdBuff, StagingBuffer, m_VulkanBuffer, 1, &BuffCopy);
+                DILIGENT_VK_CALL(CmdCopyBuffer(vkCmdBuff, StagingBuffer, m_VulkanBuffer, 1, &BuffCopy));
 
                 pRenderDeviceVk->ExecuteAndDisposeTransientCmdBuff(CmdQueueInd, vkCmdBuff, std::move(CmdPool));
 

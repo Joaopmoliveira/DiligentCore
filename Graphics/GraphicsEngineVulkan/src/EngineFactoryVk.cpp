@@ -38,6 +38,7 @@
 #include "CommandQueueVkImpl.hpp"
 #include "VulkanUtilities/VulkanInstance.hpp"
 #include "VulkanUtilities/VulkanPhysicalDevice.hpp"
+#include "VulkanUtilities/VulkanUtils.hpp"
 #include "EngineFactoryBase.hpp"
 #include "VulkanTypeConversions.hpp"
 
@@ -336,13 +337,13 @@ GraphicsAdapterInfo GetPhysicalDeviceGraphicsAdapterInfo(const VulkanUtilities::
 #if DILIGENT_USE_VOLK
             {
                 Uint32 ShadingRateCount = 0;
-                vkGetPhysicalDeviceFragmentShadingRatesKHR(PhysicalDevice.GetVkDeviceHandle(), &ShadingRateCount, nullptr);
+                DILIGENT_VK_CALL(GetPhysicalDeviceFragmentShadingRatesKHR(PhysicalDevice.GetVkDeviceHandle(), &ShadingRateCount, nullptr));
                 VERIFY_EXPR(ShadingRateCount >= 3); // Spec says that implementation must support at least 3 predefined modes.
 
                 ShadingRates.resize(ShadingRateCount);
                 for (auto& SR : ShadingRates)
                     SR.sType = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_FRAGMENT_SHADING_RATE_KHR;
-                vkGetPhysicalDeviceFragmentShadingRatesKHR(PhysicalDevice.GetVkDeviceHandle(), &ShadingRateCount, ShadingRates.data());
+                DILIGENT_VK_CALL(GetPhysicalDeviceFragmentShadingRatesKHR(PhysicalDevice.GetVkDeviceHandle(), &ShadingRateCount, ShadingRates.data()));
             }
 #else
             UNSUPPORTED("vkGetPhysicalDeviceFragmentShadingRatesKHR is only available through Volk");
