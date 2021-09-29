@@ -30,8 +30,6 @@
 
 #include "DeviceContextVk.h"
 
-#include "volk/volk.h"
-
 #include "InlineShaders/ComputeShaderTestGLSL.h"
 
 namespace Diligent
