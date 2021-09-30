@@ -86,13 +86,6 @@ std::shared_ptr<VulkanInstance> VulkanInstance::Create(const CreateInfo& CI)
 VulkanInstance::VulkanInstance(const CreateInfo& CI) :
     m_pVkAllocator{CI.pVkAllocator}
 {
-#if DILIGENT_USE_VOLK
-    if (volkInitialize() != VK_SUCCESS)
-    {
-        LOG_ERROR_AND_THROW("Failed to load Vulkan.");
-    }
-#endif
-
     {
         // Enumerate available layers
         uint32_t LayerCount = 0;
@@ -186,7 +179,7 @@ VulkanInstance::VulkanInstance(const CreateInfo& CI) :
 
     auto ApiVersion = CI.ApiVersion;
 #if DILIGENT_USE_VOLK
-    if (vkEnumerateInstanceVersion != nullptr && ApiVersion > VK_API_VERSION_1_0)
+    if (DILIGENT_VK_CALL(EnumerateInstanceVersion) != nullptr && ApiVersion > VK_API_VERSION_1_0)
     {
         uint32_t MaxApiVersion = 0;
         DILIGENT_VK_CALL(EnumerateInstanceVersion(&MaxApiVersion));
@@ -354,7 +347,7 @@ VkPhysicalDevice VulkanInstance::SelectPhysicalDevice(uint32_t AdapterId) const
         for (auto Device : m_PhysicalDevices)
         {
             VkPhysicalDeviceProperties DeviceProps;
-            vkGetPhysicalDeviceProperties(Device, &DeviceProps);
+            DILIGENT_VK_CALL(GetPhysicalDeviceProperties(Device, &DeviceProps));
 
             if (IsGraphicsAndComputeQueueSupported(Device))
             {

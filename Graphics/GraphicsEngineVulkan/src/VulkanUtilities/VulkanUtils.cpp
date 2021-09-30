@@ -1,4 +1,6 @@
+
 #include "VulkanUtilities/VulkanUtils.hpp"
+#include <algorithm>
 
 namespace VulkanUtilities
 {
@@ -11,53 +13,58 @@ namespace VulkanUtilities
         reinterpret_cast<PFN_vk##name##suffix>(getProc("vk" #name #suffix, instance, device))
 
 // finds the index of ext in infos or a negative result if ext is not found.
-static int find_info(const std::vector<VulkanExtensions::Info>& infos, const char ext[])
+static int find_info(const std::vector<VulkanExtensions::Info>& infos, const char* ext)
 {
     if (infos.empty())
     {
         return -1;
     }
+  
     std::string extensionStr(ext);
-    VulkanExtensions::Info::Less less;
-    int idx = SkTSearch<GrVkExtensions::Info, SkString, GrVkExtensions::Info::Less>(
-        &infos.front(), infos.count(), extensionStr, sizeof(GrVkExtensions::Info),
-        less);
-    return idx;
+    auto it = infos.begin();
+
+    for (int i = 0; i < infos.size(); ++i){
+        if (it->fName.compare(extensionStr) == 0)
+            return i;
+        ++it;
+    }
+    return -1;
 }
 
 
-void VulkanExtensions::init(DiligentGetProc getProc, VkInstance instance, VkPhysicalDevice device, uint32_t instanceExtensionCount, const char* const* instanceExtensions, uint32_t deviceExtensionCount, const char* const* deviceExtensions)
+void VulkanExtensions::init(DiligentGetProc getProc, VkInstance instance, VkPhysicalDevice physDev, uint32_t instanceExtensionCount, const char* const* instanceExtensions, uint32_t deviceExtensionCount, const char* const* deviceExtensions)
 {
     for (uint32_t i = 0; i < instanceExtensionCount; ++i)
     {
         const char* extension = instanceExtensions[i];
         // if not already in the list, add it
-        if (find_info(fExtensions, extension) < 0)
-        {
-            fExtensions.push_back(Info(extension));
-            SkTQSort(fExtensions.begin(), fExtensions.end(), extension_compare);
+        if (find_info(fExtensions, extension) < 0){
+            fExtensions.push_back(VulkanExtensions::Info(extension));
         }
     }
+
     for (uint32_t i = 0; i < deviceExtensionCount; ++i)
     {
         const char* extension = deviceExtensions[i];
         // if not already in the list, add it
-        if (find_info(fExtensions, extension) < 0)
-        {
-            fExtensions.push_back(Info(extension));
-            SkTQSort(fExtensions.begin(), fExtensions.end(), extension_compare);
+        if (find_info(fExtensions, extension) < 0){
+            fExtensions.push_back(VulkanExtensions::Info(extension));
         }
     }
+
     this->getSpecVersions(getProc, instance, physDev);
 };
 
-bool VulkanExtensions::hasExtension(const char[], uint32_t minVersion) const
+bool VulkanExtensions::hasExtension(const char* ext, uint32_t minVersion) const
 {
     int idx = find_info(fExtensions, ext);
-    return idx >= 0 && fExtensions[idx].fSpecVersion >= minVersion;
+    return idx >= 0;
 };
 
-void VulkanExtensions::getSpecVersions(DiligentGetProc getProc, VkInstance instance, VkPhysicalDevice)
+#define GET_PROC(F, inst) \
+    PFN_vk##F grVk##F = (PFN_vk##F)getProc("vk" #F, inst, VK_NULL_HANDLE)
+
+void VulkanExtensions::getSpecVersions(DiligentGetProc getProc, VkInstance instance, VkPhysicalDevice physDevice)
 {
     // We grab all the extensions for the VkInstance and VkDevice so we can look up what spec
     // version each of the supported extensions are. We do not grab the extensions for layers
@@ -65,22 +72,22 @@ void VulkanExtensions::getSpecVersions(DiligentGetProc getProc, VkInstance insta
     // special for those extensions.
 
     if (instance == VK_NULL_HANDLE)
-    {
         return;
-    }
+
     GET_PROC(EnumerateInstanceExtensionProperties, VK_NULL_HANDLE);
-    SkASSERT(grVkEnumerateInstanceExtensionProperties);
+    if(grVkEnumerateInstanceExtensionProperties!=nullptr)
+        return;
 
     VkResult res;
     // instance extensions
     uint32_t extensionCount = 0;
-    res                     = grVkEnumerateInstanceExtensionProperties(nullptr, &extensionCount, nullptr);
+    res = grVkEnumerateInstanceExtensionProperties(nullptr, &extensionCount, nullptr);
     if (VK_SUCCESS != res)
     {
         return;
     }
     VkExtensionProperties* extensions = new VkExtensionProperties[extensionCount];
-    res                               = grVkEnumerateInstanceExtensionProperties(nullptr, &extensionCount, extensions);
+    res = grVkEnumerateInstanceExtensionProperties(nullptr, &extensionCount, extensions);
     if (VK_SUCCESS != res)
     {
         delete[] extensions;
@@ -101,7 +108,6 @@ void VulkanExtensions::getSpecVersions(DiligentGetProc getProc, VkInstance insta
         return;
     }
     GET_PROC(EnumerateDeviceExtensionProperties, instance);
-    SkASSERT(grVkEnumerateDeviceExtensionProperties);
 
     // device extensions
     extensionCount = 0;
@@ -128,7 +134,7 @@ void VulkanExtensions::getSpecVersions(DiligentGetProc getProc, VkInstance insta
     delete[] extensions;
 };
 
-VulkanInterface::VulkanInterface(DiligentGetProc getProc, VkInstance instance, VkDevice device, uint32_t instanceVersion, uint32_t physicalDeviceVersion, const DLVkExtensions* extensions)
+VulkanInterface::VulkanInterface(DiligentGetProc getProc, VkInstance instance, VkDevice device, uint32_t instanceVersion, uint32_t physicalDeviceVersion, const VulkanExtensions* extensions)
 {
     if (getProc == nullptr)
     {

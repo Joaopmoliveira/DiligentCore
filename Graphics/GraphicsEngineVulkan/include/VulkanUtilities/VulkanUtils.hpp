@@ -7,7 +7,7 @@
 #include <string>
 #include <vector>
 
-// makes a Vulkan call on the Diligent interface to the API
+// Diligent interface to the Vulkan API
 #define DILIGENT_VK_CALL(X) VulkanUtilities::diligent_vk_interface.fFunctions.f##X;
 
 namespace VulkanUtilities
@@ -34,9 +34,17 @@ class VulkanExtensions
 public:
     VulkanExtensions() {}
 
+    /*
+    Initialize the extensions which are available for the Diligent engine.
+    */
     void init(DiligentGetProc, VkInstance, VkPhysicalDevice, uint32_t instanceExtensionCount, const char* const* instanceExtensions, uint32_t deviceExtensionCount, const char* const* deviceExtensions);
 
-    bool hasExtension(const char[], uint32_t minVersion) const;
+    /*
+    If a given algorithm requires an extension with a given version
+    then the class can query if the extensions provided are compatible 
+    with the requested extensions.
+    */
+    bool hasExtension(const char* , uint32_t minVersion) const;
 
     struct Info
     {
@@ -45,19 +53,16 @@ public:
             fName(name), fSpecVersion(0) {}
 
         std::string fName;
-        uint32_t    fSpecVersion;
+        uint32_t fSpecVersion;
 
-        struct Less
+        bool operator()(const Info& a, const std::string& b) const
         {
-            bool operator()(const Info& a, const std::string& b) const
-            {
-                return strcmp(a.fName.c_str(), b.c_str()) < 0;
-            }
-            bool operator()(const std::string& a, const VulkanExtensions::Info& b) const
-            {
-                return strcmp(a.c_str(), b.fName.c_str()) < 0;
-            }
-        };
+            return strcmp(a.fName.c_str(), b.c_str()) < 0;
+        }
+        bool operator()(const std::string& a, const VulkanExtensions::Info& b) const
+        {
+            return strcmp(a.c_str(), b.fName.c_str()) < 0;
+        }
     };
 
 private:
