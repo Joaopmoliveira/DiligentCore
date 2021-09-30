@@ -58,7 +58,7 @@ void VulkanExtensions::init(DiligentGetProc getProc, VkInstance instance, VkPhys
 bool VulkanExtensions::hasExtension(const char* ext, uint32_t minVersion) const
 {
     int idx = find_info(fExtensions, ext);
-    return idx >= 0;
+    return idx >= 0 && fExtensions[idx].fSpecVersion >= minVersion;
 };
 
 #define GET_PROC(F, inst) \
