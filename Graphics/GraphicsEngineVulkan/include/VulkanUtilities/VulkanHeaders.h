@@ -27,18 +27,9 @@
 
 #pragma once
 
-#if DILIGENT_USE_VOLK
-#    define VK_NO_PROTOTYPES
-#endif
-
-#define VK_ENABLE_BETA_EXTENSIONS
-#include "vulkan/vulkan.h"
+#include "VulkanUtils.hpp"
 
 #define VK_FORMAT_RANGE_SIZE (VK_FORMAT_ASTC_12x12_SRGB_BLOCK - VK_FORMAT_UNDEFINED + 1)
-
-#if DILIGENT_USE_VOLK
-#    include "volk/volk.h"
-#endif
 
 #ifdef _WINBASE_
 #    undef CreateSemaphore

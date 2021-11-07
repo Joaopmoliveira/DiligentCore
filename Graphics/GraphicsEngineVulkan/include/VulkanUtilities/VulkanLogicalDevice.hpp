@@ -219,8 +219,8 @@ public:
                                  VkDeviceSize       stride,
                                  VkQueryResultFlags flags) const
     {
-        return vkGetQueryPoolResults(m_VkDevice, queryPool, firstQuery, queryCount,
-                                     dataSize, pData, stride, flags);
+        return DILIGENT_VK_CALL(GetQueryPoolResults(m_VkDevice, queryPool, firstQuery, queryCount,
+                                     dataSize, pData, stride, flags));
     }
 
     void ResetQueryPool(VkQueryPool queryPool,

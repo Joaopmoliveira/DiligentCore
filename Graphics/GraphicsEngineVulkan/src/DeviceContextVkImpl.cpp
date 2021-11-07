@@ -2532,7 +2532,7 @@ void DeviceContextVkImpl::FinishCommandList(ICommandList** ppCommandList)
     }
 
     auto vkCmdBuff = m_CommandBuffer.GetVkCmdBuffer();
-    auto err       = vkEndCommandBuffer(vkCmdBuff);
+    auto err       = DILIGENT_VK_CALL(EndCommandBuffer(vkCmdBuff))
     DEV_CHECK_ERR(err == VK_SUCCESS, "Failed to end command buffer");
     (void)err;
 

@@ -563,7 +563,7 @@ VkDeviceAddress BufferVkImpl::GetVkDeviceAddress() const
 
         BufferInfo.sType       = VK_STRUCTURE_TYPE_BUFFER_DEVICE_ADDRESS_INFO_KHR;
         BufferInfo.buffer      = m_VulkanBuffer;
-        VkDeviceAddress Result = vkGetBufferDeviceAddressKHR(m_pDevice->GetLogicalDevice().GetVkDevice(), &BufferInfo);
+        VkDeviceAddress Result = DILIGENT_VK_CALL(GetBufferDeviceAddressKHR(m_pDevice->GetLogicalDevice().GetVkDevice(), &BufferInfo))
         VERIFY_EXPR(Result > 0);
         return Result;
 #else

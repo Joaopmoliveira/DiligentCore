@@ -54,13 +54,13 @@ public:
         VERIFY(m_State.RenderPass == VK_NULL_HANDLE, "vkCmdClearColorImage() must be called outside of render pass (17.1)");
         VERIFY(Subresource.aspectMask == VK_IMAGE_ASPECT_COLOR_BIT, "The aspectMask of all image subresource ranges must only include VK_IMAGE_ASPECT_COLOR_BIT (17.1)");
 
-        vkCmdClearColorImage(
+        DILIGENT_VK_CALL(CmdClearColorImage(
             m_VkCmdBuffer,
             Image,
             VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, // must be VK_IMAGE_LAYOUT_GENERAL or VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL
             &Color,
             1,
-            &Subresource);
+            &Subresource));
     }
 
     __forceinline void ClearDepthStencilImage(VkImage                         Image,
@@ -75,13 +75,13 @@ public:
                "The aspectMask of all image subresource ranges must only include VK_IMAGE_ASPECT_DEPTH_BIT or VK_IMAGE_ASPECT_STENCIL_BIT(17.1)");
         // clang-format on
 
-        vkCmdClearDepthStencilImage(
+        DILIGENT_VK_CALL(CmdClearDepthStencilImage(
             m_VkCmdBuffer,
             Image,
             VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, // must be VK_IMAGE_LAYOUT_GENERAL or VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL
             &DepthStencil,
             1,
-            &Subresource);
+            &Subresource));
     }
 
     __forceinline void ClearAttachment(const VkClearAttachment& Attachment, const VkClearRect& ClearRect)
@@ -89,14 +89,14 @@ public:
         VERIFY_EXPR(m_VkCmdBuffer != VK_NULL_HANDLE);
         VERIFY(m_State.RenderPass != VK_NULL_HANDLE, "vkCmdClearAttachments() must be called inside render pass (17.2)");
 
-        vkCmdClearAttachments(
+        DILIGENT_VK_CALL(CmdClearAttachments(
             m_VkCmdBuffer,
             1,
             &Attachment,
             1,
             &ClearRect // The rectangular region specified by each element of pRects must be
                        // contained within the render area of the current render pass instance
-        );
+        ));
     }
 
     __forceinline void Draw(uint32_t VertexCount, uint32_t InstanceCount, uint32_t FirstVertex, uint32_t FirstInstance)
@@ -105,7 +105,7 @@ public:
         VERIFY(m_State.RenderPass != VK_NULL_HANDLE, "vkCmdDraw() must be called inside render pass (19.3)");
         VERIFY(m_State.GraphicsPipeline != VK_NULL_HANDLE, "No graphics pipeline bound");
 
-        vkCmdDraw(m_VkCmdBuffer, VertexCount, InstanceCount, FirstVertex, FirstInstance);
+        DILIGENT_VK_CALL(CmdDraw(m_VkCmdBuffer, VertexCount, InstanceCount, FirstVertex, FirstInstance));
     }
 
     __forceinline void DrawIndexed(uint32_t IndexCount, uint32_t InstanceCount, uint32_t FirstIndex, int32_t VertexOffset, uint32_t FirstInstance)
@@ -115,7 +115,7 @@ public:
         VERIFY(m_State.GraphicsPipeline != VK_NULL_HANDLE, "No graphics pipeline bound");
         VERIFY(m_State.IndexBuffer != VK_NULL_HANDLE, "No index buffer bound");
 
-        vkCmdDrawIndexed(m_VkCmdBuffer, IndexCount, InstanceCount, FirstIndex, VertexOffset, FirstInstance);
+        DILIGENT_VK_CALL(CmdDrawIndexed(m_VkCmdBuffer, IndexCount, InstanceCount, FirstIndex, VertexOffset, FirstInstance));
     }
 
     __forceinline void DrawIndirect(VkBuffer Buffer, VkDeviceSize Offset, uint32_t DrawCount, uint32_t Stride)
@@ -124,7 +124,7 @@ public:
         VERIFY(m_State.RenderPass != VK_NULL_HANDLE, "vkCmdDrawIndirect() must be called inside render pass (19.3)");
         VERIFY(m_State.GraphicsPipeline != VK_NULL_HANDLE, "No graphics pipeline bound");
 
-        vkCmdDrawIndirect(m_VkCmdBuffer, Buffer, Offset, DrawCount, Stride);
+        DILIGENT_VK_CALL(CmdDrawIndirect(m_VkCmdBuffer, Buffer, Offset, DrawCount, Stride));
     }
 
     __forceinline void DrawIndexedIndirect(VkBuffer Buffer, VkDeviceSize Offset, uint32_t DrawCount, uint32_t Stride)
@@ -134,7 +134,7 @@ public:
         VERIFY(m_State.GraphicsPipeline != VK_NULL_HANDLE, "No graphics pipeline bound");
         VERIFY(m_State.IndexBuffer != VK_NULL_HANDLE, "No index buffer bound");
 
-        vkCmdDrawIndexedIndirect(m_VkCmdBuffer, Buffer, Offset, DrawCount, Stride);
+        DILIGENT_VK_CALL(CmdDrawIndexedIndirect(m_VkCmdBuffer, Buffer, Offset, DrawCount, Stride));
     }
 
     __forceinline void DrawIndirectCount(VkBuffer Buffer, VkDeviceSize Offset, VkBuffer CountBuffer, VkDeviceSize CountBufferOffset, uint32_t MaxDrawCount, uint32_t Stride)
@@ -144,7 +144,7 @@ public:
         VERIFY(m_State.RenderPass != VK_NULL_HANDLE, "vkCmdDrawIndirectCountKHR() must be called inside render pass (19.3)");
         VERIFY(m_State.GraphicsPipeline != VK_NULL_HANDLE, "No graphics pipeline bound");
 
-        vkCmdDrawIndirectCountKHR(m_VkCmdBuffer, Buffer, Offset, CountBuffer, CountBufferOffset, MaxDrawCount, Stride);
+        DILIGENT_VK_CALL(CmdDrawIndirectCountKHR(m_VkCmdBuffer, Buffer, Offset, CountBuffer, CountBufferOffset, MaxDrawCount, Stride));
 #else
         UNSUPPORTED("DrawIndirectCount is not supported when vulkan library is linked statically");
 #endif
@@ -158,7 +158,7 @@ public:
         VERIFY(m_State.GraphicsPipeline != VK_NULL_HANDLE, "No graphics pipeline bound");
         VERIFY(m_State.IndexBuffer != VK_NULL_HANDLE, "No index buffer bound");
 
-        vkCmdDrawIndexedIndirectCountKHR(m_VkCmdBuffer, Buffer, Offset, CountBuffer, CountBufferOffset, MaxDrawCount, Stride);
+        DILIGENT_VK_CALL(CmdDrawIndexedIndirectCountKHR(m_VkCmdBuffer, Buffer, Offset, CountBuffer, CountBufferOffset, MaxDrawCount, Stride));
 #else
         UNSUPPORTED("DrawIndexedIndirectCount is not supported when vulkan library is linked statically");
 #endif
@@ -171,7 +171,7 @@ public:
         VERIFY(m_State.RenderPass != VK_NULL_HANDLE, "vkCmdDrawMeshTasksNV() must be called inside render pass");
         VERIFY(m_State.GraphicsPipeline != VK_NULL_HANDLE, "No graphics pipeline bound");
 
-        vkCmdDrawMeshTasksNV(m_VkCmdBuffer, TaskCount, FirstTask);
+        DILIGENT_VK_CALL(CmdDrawMeshTasksNV(m_VkCmdBuffer, TaskCount, FirstTask));
 #else
         UNSUPPORTED("DrawMesh is not supported when vulkan library is linked statically");
 #endif
@@ -184,7 +184,7 @@ public:
         VERIFY(m_State.RenderPass != VK_NULL_HANDLE, "vkCmdDrawMeshTasksNV() must be called inside render pass");
         VERIFY(m_State.GraphicsPipeline != VK_NULL_HANDLE, "No graphics pipeline bound");
 
-        vkCmdDrawMeshTasksIndirectNV(m_VkCmdBuffer, Buffer, Offset, DrawCount, Stride);
+        DILIGENT_VK_CALL(CmdDrawMeshTasksIndirectNV(m_VkCmdBuffer, Buffer, Offset, DrawCount, Stride));
 #else
         UNSUPPORTED("DrawMeshIndirect is not supported when vulkan library is linked statically");
 #endif
@@ -197,7 +197,7 @@ public:
         VERIFY(m_State.RenderPass != VK_NULL_HANDLE, "vkCmdDrawMeshTasksIndirectCountNV() must be called inside render pass");
         VERIFY(m_State.GraphicsPipeline != VK_NULL_HANDLE, "No graphics pipeline bound");
 
-        vkCmdDrawMeshTasksIndirectCountNV(m_VkCmdBuffer, Buffer, Offset, CountBuffer, CountBufferOffset, MaxDrawCount, Stride);
+        DILIGENT_VK_CALL(CmdDrawMeshTasksIndirectCountNV(m_VkCmdBuffer, Buffer, Offset, CountBuffer, CountBufferOffset, MaxDrawCount, Stride));
 #else
         UNSUPPORTED("DrawMeshIndirectCount is not supported when vulkan library is linked statically");
 #endif
@@ -209,7 +209,7 @@ public:
         VERIFY(m_State.RenderPass == VK_NULL_HANDLE, "vkCmdDispatch() must be called outside of render pass (27)");
         VERIFY(m_State.ComputePipeline != VK_NULL_HANDLE, "No compute pipeline bound");
 
-        vkCmdDispatch(m_VkCmdBuffer, GroupCountX, GroupCountY, GroupCountZ);
+        DILIGENT_VK_CALL(CmdDispatch(m_VkCmdBuffer, GroupCountX, GroupCountY, GroupCountZ));
     }
 
     __forceinline void DispatchIndirect(VkBuffer Buffer, VkDeviceSize Offset)
@@ -218,7 +218,7 @@ public:
         VERIFY(m_State.RenderPass == VK_NULL_HANDLE, "vkCmdDispatchIndirect() must be called outside of render pass (27)");
         VERIFY(m_State.ComputePipeline != VK_NULL_HANDLE, "No compute pipeline bound");
 
-        vkCmdDispatchIndirect(m_VkCmdBuffer, Buffer, Offset);
+        DILIGENT_VK_CALL(CmdDispatchIndirect(m_VkCmdBuffer, Buffer, Offset));
     }
 
     __forceinline void BeginRenderPass(VkRenderPass        RenderPass,
@@ -248,11 +248,11 @@ public:
                                                       // corresponding to cleared attachments are used. Other elements of pClearValues are
                                                       // ignored (7.4)
 
-            vkCmdBeginRenderPass(m_VkCmdBuffer, &BeginInfo,
+            DILIGENT_VK_CALL(CmdBeginRenderPass(m_VkCmdBuffer, &BeginInfo,
                                  VK_SUBPASS_CONTENTS_INLINE // the contents of the subpass will be recorded inline in the
                                                             // primary command buffer, and secondary command buffers must not
                                                             // be executed within the subpass
-            );
+            ));
             m_State.RenderPass        = RenderPass;
             m_State.Framebuffer       = Framebuffer;
             m_State.FramebufferWidth  = FramebufferWidth;
@@ -264,7 +264,7 @@ public:
     {
         VERIFY(m_State.RenderPass != VK_NULL_HANDLE, "Render pass has not been started");
         VERIFY_EXPR(m_VkCmdBuffer != VK_NULL_HANDLE);
-        vkCmdEndRenderPass(m_VkCmdBuffer);
+        DILIGENT_VK_CALL(CmdEndRenderPass(m_VkCmdBuffer));
         m_State.RenderPass        = VK_NULL_HANDLE;
         m_State.Framebuffer       = VK_NULL_HANDLE;
         m_State.FramebufferWidth  = 0;
@@ -282,13 +282,13 @@ public:
     {
         VERIFY(m_State.RenderPass != VK_NULL_HANDLE, "Render pass has not been started");
         VERIFY_EXPR(m_VkCmdBuffer != VK_NULL_HANDLE);
-        vkCmdNextSubpass(m_VkCmdBuffer, VK_SUBPASS_CONTENTS_INLINE);
+        DILIGENT_VK_CALL(CmdNextSubpass(m_VkCmdBuffer, VK_SUBPASS_CONTENTS_INLINE));
     }
 
     __forceinline void EndCommandBuffer()
     {
         VERIFY_EXPR(m_VkCmdBuffer != VK_NULL_HANDLE);
-        vkEndCommandBuffer(m_VkCmdBuffer);
+        DILIGENT_VK_CALL(EndCommandBuffer(m_VkCmdBuffer));
     }
 
     __forceinline void Reset()
@@ -303,7 +303,7 @@ public:
         VERIFY_EXPR(m_VkCmdBuffer != VK_NULL_HANDLE);
         if (m_State.ComputePipeline != ComputePipeline)
         {
-            vkCmdBindPipeline(m_VkCmdBuffer, VK_PIPELINE_BIND_POINT_COMPUTE, ComputePipeline);
+            DILIGENT_VK_CALL(CmdBindPipeline(m_VkCmdBuffer, VK_PIPELINE_BIND_POINT_COMPUTE, ComputePipeline));
             m_State.ComputePipeline = ComputePipeline;
         }
     }
@@ -314,7 +314,7 @@ public:
         VERIFY_EXPR(m_VkCmdBuffer != VK_NULL_HANDLE);
         if (m_State.GraphicsPipeline != GraphicsPipeline)
         {
-            vkCmdBindPipeline(m_VkCmdBuffer, VK_PIPELINE_BIND_POINT_GRAPHICS, GraphicsPipeline);
+            DILIGENT_VK_CALL(CmdBindPipeline(m_VkCmdBuffer, VK_PIPELINE_BIND_POINT_GRAPHICS, GraphicsPipeline));
             m_State.GraphicsPipeline = GraphicsPipeline;
         }
     }
@@ -325,7 +325,7 @@ public:
         VERIFY_EXPR(m_VkCmdBuffer != VK_NULL_HANDLE);
         if (m_State.RayTracingPipeline != RayTracingPipeline)
         {
-            vkCmdBindPipeline(m_VkCmdBuffer, VK_PIPELINE_BIND_POINT_RAY_TRACING_KHR, RayTracingPipeline);
+            DILIGENT_VK_CALL(CmdBindPipeline(m_VkCmdBuffer, VK_PIPELINE_BIND_POINT_RAY_TRACING_KHR, RayTracingPipeline));
             m_State.RayTracingPipeline = RayTracingPipeline;
         }
     }
@@ -333,25 +333,25 @@ public:
     __forceinline void SetViewports(uint32_t FirstViewport, uint32_t ViewportCount, const VkViewport* pViewports)
     {
         VERIFY_EXPR(m_VkCmdBuffer != VK_NULL_HANDLE);
-        vkCmdSetViewport(m_VkCmdBuffer, FirstViewport, ViewportCount, pViewports);
+        DILIGENT_VK_CALL(CmdSetViewport(m_VkCmdBuffer, FirstViewport, ViewportCount, pViewports));
     }
 
     __forceinline void SetScissorRects(uint32_t FirstScissor, uint32_t ScissorCount, const VkRect2D* pScissors)
     {
         VERIFY_EXPR(m_VkCmdBuffer != VK_NULL_HANDLE);
-        vkCmdSetScissor(m_VkCmdBuffer, FirstScissor, ScissorCount, pScissors);
+        DILIGENT_VK_CALL(CmdSetScissor(m_VkCmdBuffer, FirstScissor, ScissorCount, pScissors));
     }
 
     __forceinline void SetStencilReference(uint32_t Reference)
     {
         VERIFY_EXPR(m_VkCmdBuffer != VK_NULL_HANDLE);
-        vkCmdSetStencilReference(m_VkCmdBuffer, VK_STENCIL_FRONT_AND_BACK, Reference);
+        DILIGENT_VK_CALL(CmdSetStencilReference(m_VkCmdBuffer, VK_STENCIL_FRONT_AND_BACK, Reference));
     }
 
     __forceinline void SetBlendConstants(const float BlendConstants[4])
     {
         VERIFY_EXPR(m_VkCmdBuffer != VK_NULL_HANDLE);
-        vkCmdSetBlendConstants(m_VkCmdBuffer, BlendConstants);
+        DILIGENT_VK_CALL(CmdSetBlendConstants(m_VkCmdBuffer, BlendConstants));
     }
 
     __forceinline void BindIndexBuffer(VkBuffer Buffer, VkDeviceSize Offset, VkIndexType IndexType)
@@ -363,7 +363,7 @@ public:
             m_State.IndexType         != IndexType)
         {
             // clang-format on
-            vkCmdBindIndexBuffer(m_VkCmdBuffer, Buffer, Offset, IndexType);
+            DILIGENT_VK_CALL(CmdBindIndexBuffer(m_VkCmdBuffer, Buffer, Offset, IndexType));
             m_State.IndexBuffer       = Buffer;
             m_State.IndexBufferOffset = Offset;
             m_State.IndexType         = IndexType;
@@ -373,7 +373,7 @@ public:
     __forceinline void BindVertexBuffers(uint32_t firstBinding, uint32_t bindingCount, const VkBuffer* pBuffers, const VkDeviceSize* pOffsets)
     {
         VERIFY_EXPR(m_VkCmdBuffer != VK_NULL_HANDLE);
-        vkCmdBindVertexBuffers(m_VkCmdBuffer, firstBinding, bindingCount, pBuffers, pOffsets);
+        DILIGENT_VK_CALL(CmdBindVertexBuffers(m_VkCmdBuffer, firstBinding, bindingCount, pBuffers, pOffsets));
     }
 
     static void TransitionImageLayout(VkCommandBuffer                CmdBuffer,
@@ -460,7 +460,7 @@ public:
                                           const uint32_t*        pDynamicOffsets    = nullptr)
     {
         VERIFY_EXPR(m_VkCmdBuffer != VK_NULL_HANDLE);
-        vkCmdBindDescriptorSets(m_VkCmdBuffer, pipelineBindPoint, layout, firstSet, descriptorSetCount, pDescriptorSets, dynamicOffsetCount, pDynamicOffsets);
+        DILIGENT_VK_CALL(CmdBindDescriptorSets(m_VkCmdBuffer, pipelineBindPoint, layout, firstSet, descriptorSetCount, pDescriptorSets, dynamicOffsetCount, pDynamicOffsets));
     }
 
     __forceinline void CopyBuffer(VkBuffer            srcBuffer,
@@ -474,7 +474,7 @@ public:
             // Copy buffer operation must be performed outside of render pass.
             EndRenderPass();
         }
-        vkCmdCopyBuffer(m_VkCmdBuffer, srcBuffer, dstBuffer, regionCount, pRegions);
+        DILIGENT_VK_CALL(CmdCopyBuffer(m_VkCmdBuffer, srcBuffer, dstBuffer, regionCount, pRegions));
     }
 
     __forceinline void CopyImage(VkImage            srcImage,
@@ -491,7 +491,7 @@ public:
             EndRenderPass();
         }
 
-        vkCmdCopyImage(m_VkCmdBuffer, srcImage, srcImageLayout, dstImage, dstImageLayout, regionCount, pRegions);
+        DILIGENT_VK_CALL(CmdCopyImage(m_VkCmdBuffer, srcImage, srcImageLayout, dstImage, dstImageLayout, regionCount, pRegions));
     }
 
     __forceinline void CopyBufferToImage(VkBuffer                 srcBuffer,
@@ -507,7 +507,7 @@ public:
             EndRenderPass();
         }
 
-        vkCmdCopyBufferToImage(m_VkCmdBuffer, srcBuffer, dstImage, dstImageLayout, regionCount, pRegions);
+        DILIGENT_VK_CALL(CmdCopyBufferToImage(m_VkCmdBuffer, srcBuffer, dstImage, dstImageLayout, regionCount, pRegions));
     }
 
     __forceinline void CopyImageToBuffer(VkImage                  srcImage,
@@ -523,7 +523,7 @@ public:
             EndRenderPass();
         }
 
-        vkCmdCopyImageToBuffer(m_VkCmdBuffer, srcImage, srcImageLayout, dstBuffer, regionCount, pRegions);
+        DILIGENT_VK_CALL(CmdCopyImageToBuffer(m_VkCmdBuffer, srcImage, srcImageLayout, dstBuffer, regionCount, pRegions));
     }
 
     __forceinline void BlitImage(VkImage            srcImage,
@@ -541,7 +541,7 @@ public:
             EndRenderPass();
         }
 
-        vkCmdBlitImage(m_VkCmdBuffer, srcImage, srcImageLayout, dstImage, dstImageLayout, regionCount, pRegions, filter);
+        DILIGENT_VK_CALL(CmdBlitImage(m_VkCmdBuffer, srcImage, srcImageLayout, dstImage, dstImageLayout, regionCount, pRegions, filter));
     }
 
     __forceinline void ResolveImage(VkImage               srcImage,
@@ -557,7 +557,7 @@ public:
             // Resolve must be performed outside of render pass.
             EndRenderPass();
         }
-        vkCmdResolveImage(m_VkCmdBuffer, srcImage, srcImageLayout, dstImage, dstImageLayout, regionCount, pRegions);
+        DILIGENT_VK_CALL(CmdResolveImage(m_VkCmdBuffer, srcImage, srcImageLayout, dstImage, dstImageLayout, regionCount, pRegions));
     }
 
     __forceinline void BeginQuery(VkQueryPool         queryPool,
@@ -580,7 +580,7 @@ public:
         // begin and end outside of a render pass instance (i.e. contain entire render pass instances) (17.2).
 
         VERIFY_EXPR(m_VkCmdBuffer != VK_NULL_HANDLE);
-        vkCmdBeginQuery(m_VkCmdBuffer, queryPool, query, flags);
+        DILIGENT_VK_CALL(CmdBeginQuery(m_VkCmdBuffer, queryPool, query, flags));
         if (m_State.RenderPass != VK_NULL_HANDLE)
             m_State.InsidePassQueries |= queryFlag;
         else
@@ -592,7 +592,7 @@ public:
                                 uint32_t    queryFlag)
     {
         VERIFY_EXPR(m_VkCmdBuffer != VK_NULL_HANDLE);
-        vkCmdEndQuery(m_VkCmdBuffer, queryPool, query);
+        DILIGENT_VK_CALL(CmdEndQuery(m_VkCmdBuffer, queryPool, query));
         if (m_State.RenderPass != VK_NULL_HANDLE)
         {
             VERIFY((m_State.InsidePassQueries & queryFlag) != 0, "No active inside-pass queries found.");
@@ -610,7 +610,7 @@ public:
                                       uint32_t                query)
     {
         VERIFY_EXPR(m_VkCmdBuffer != VK_NULL_HANDLE);
-        vkCmdWriteTimestamp(m_VkCmdBuffer, pipelineStage, queryPool, query);
+        DILIGENT_VK_CALL(CmdWriteTimestamp(m_VkCmdBuffer, pipelineStage, queryPool, query));
     }
 
     __forceinline void ResetQueryPool(VkQueryPool queryPool,
@@ -623,7 +623,7 @@ public:
             // Query pool reset must be performed outside of render pass (17.2).
             EndRenderPass();
         }
-        vkCmdResetQueryPool(m_VkCmdBuffer, queryPool, firstQuery, queryCount);
+        DILIGENT_VK_CALL(CmdResetQueryPool(m_VkCmdBuffer, queryPool, firstQuery, queryCount));
     }
 
     __forceinline void CopyQueryPoolResults(VkQueryPool        queryPool,
@@ -640,8 +640,8 @@ public:
             // Copy query results must be performed outside of render pass (17.2).
             EndRenderPass();
         }
-        vkCmdCopyQueryPoolResults(m_VkCmdBuffer, queryPool, firstQuery, queryCount,
-                                  dstBuffer, dstOffset, stride, flags);
+        DILIGENT_VK_CALL(CmdCopyQueryPoolResults(m_VkCmdBuffer, queryPool, firstQuery, queryCount,
+                                  dstBuffer, dstOffset, stride, flags));
     }
 
     __forceinline void BuildAccelerationStructure(uint32_t                                               infoCount,
@@ -655,7 +655,7 @@ public:
             // Build AS operations must be performed outside of render pass.
             EndRenderPass();
         }
-        vkCmdBuildAccelerationStructuresKHR(m_VkCmdBuffer, infoCount, pInfos, ppBuildRangeInfos);
+        DILIGENT_VK_CALL(CmdBuildAccelerationStructuresKHR(m_VkCmdBuffer, infoCount, pInfos, ppBuildRangeInfos));
 #else
         UNSUPPORTED("Ray tracing is not supported when vulkan library is linked statically");
 #endif
@@ -670,7 +670,7 @@ public:
             // Copy AS operations must be performed outside of render pass.
             EndRenderPass();
         }
-        vkCmdCopyAccelerationStructureKHR(m_VkCmdBuffer, &Info);
+        DILIGENT_VK_CALL(CmdCopyAccelerationStructureKHR(m_VkCmdBuffer, &Info));
 #else
         UNSUPPORTED("Ray tracing is not supported when vulkan library is linked statically");
 #endif
@@ -685,7 +685,7 @@ public:
             // Write AS properties operations must be performed outside of render pass.
             EndRenderPass();
         }
-        vkCmdWriteAccelerationStructuresPropertiesKHR(m_VkCmdBuffer, 1, &accelerationStructure, queryType, queryPool, firstQuery);
+        DILIGENT_VK_CALL(CmdWriteAccelerationStructuresPropertiesKHR(m_VkCmdBuffer, 1, &accelerationStructure, queryType, queryPool, firstQuery));
 #else
         UNSUPPORTED("Ray tracing is not supported when vulkan library is linked statically");
 #endif
@@ -703,7 +703,7 @@ public:
         VERIFY_EXPR(m_VkCmdBuffer != VK_NULL_HANDLE);
         VERIFY(m_State.RayTracingPipeline != VK_NULL_HANDLE, "No ray tracing pipeline bound");
 
-        vkCmdTraceRaysKHR(m_VkCmdBuffer, &RaygenShaderBindingTable, &MissShaderBindingTable, &HitShaderBindingTable, &CallableShaderBindingTable, width, height, depth);
+        DILIGENT_VK_CALL(CmdTraceRaysKHR(m_VkCmdBuffer, &RaygenShaderBindingTable, &MissShaderBindingTable, &HitShaderBindingTable, &CallableShaderBindingTable, width, height, depth))
 #else
         UNSUPPORTED("Ray tracing is not supported when vulkan library is linked statically");
 #endif
@@ -719,7 +719,7 @@ public:
         VERIFY_EXPR(m_VkCmdBuffer != VK_NULL_HANDLE);
         VERIFY(m_State.RayTracingPipeline != VK_NULL_HANDLE, "No ray tracing pipeline bound");
 
-        vkCmdTraceRaysIndirectKHR(m_VkCmdBuffer, &RaygenShaderBindingTable, &MissShaderBindingTable, &HitShaderBindingTable, &CallableShaderBindingTable, indirectDeviceAddress);
+        DILIGENT_VK_CALL(CmdTraceRaysIndirectKHR(m_VkCmdBuffer, &RaygenShaderBindingTable, &MissShaderBindingTable, &HitShaderBindingTable, &CallableShaderBindingTable, indirectDeviceAddress))
 #else
         UNSUPPORTED("Ray tracing is not supported when vulkan library is linked statically");
 #endif
@@ -732,8 +732,8 @@ public:
         VERIFY_EXPR(Label.sType == VK_STRUCTURE_TYPE_DEBUG_UTILS_LABEL_EXT);
 
         // Pointer to the function may be null if validation layer is not enabled
-        if (vkCmdBeginDebugUtilsLabelEXT != nullptr)
-            vkCmdBeginDebugUtilsLabelEXT(m_VkCmdBuffer, &Label);
+        if (DILIGENT_VK_CALL(CmdBeginDebugUtilsLabelEXT) != nullptr)
+            DILIGENT_VK_CALL(CmdBeginDebugUtilsLabelEXT(m_VkCmdBuffer, &Label))
 #else
         LOG_WARNING_MESSAGE_ONCE("Debug utils are not supported when vulkan library is linked statically");
 #endif
@@ -743,8 +743,8 @@ public:
     {
 #if DILIGENT_USE_VOLK
         // Pointer to function may be null if validation layer is not enabled
-        if (vkCmdEndDebugUtilsLabelEXT != nullptr)
-            vkCmdEndDebugUtilsLabelEXT(m_VkCmdBuffer);
+        if (DILIGENT_VK_CALL(CmdEndDebugUtilsLabelEXT) != nullptr)
+            DILIGENT_VK_CALL(CmdEndDebugUtilsLabelEXT(m_VkCmdBuffer))
 #else
         LOG_WARNING_MESSAGE_ONCE("Debug utils are not supported when vulkan library is linked statically");
 #endif
@@ -757,8 +757,8 @@ public:
         VERIFY_EXPR(Label.sType == VK_STRUCTURE_TYPE_DEBUG_UTILS_LABEL_EXT);
 
         // Pointer to the function may be null if validation layer is not enabled
-        if (vkCmdInsertDebugUtilsLabelEXT != nullptr)
-            vkCmdInsertDebugUtilsLabelEXT(m_VkCmdBuffer, &Label);
+        if (DILIGENT_VK_CALL(CmdInsertDebugUtilsLabelEXT) != nullptr)
+            DILIGENT_VK_CALL(CmdInsertDebugUtilsLabelEXT(m_VkCmdBuffer, &Label))
 #else
         LOG_WARNING_MESSAGE_ONCE("Debug utils are not supported when vulkan library is linked statically");
 #endif
@@ -770,7 +770,7 @@ public:
 #if DILIGENT_USE_VOLK
         VERIFY_EXPR(m_VkCmdBuffer != VK_NULL_HANDLE);
 
-        vkCmdSetFragmentShadingRateKHR(m_VkCmdBuffer, &FragSize, CombinerOps);
+        DILIGENT_VK_CALL(CmdSetFragmentShadingRateKHR(m_VkCmdBuffer, &FragSize, CombinerOps))
 #else
         LOG_WARNING_MESSAGE_ONCE("Shading rate is not supported when vulkan library is linked statically");
 #endif
