@@ -145,8 +145,14 @@ void SetupDebugging(VkInstance                          instance,
                     VkDebugUtilsMessageTypeFlagsEXT     messageType,
                     void*                               pUserData)
 {
-    CreateDebugUtilsMessengerEXT  = reinterpret_cast<PFN_vkCreateDebugUtilsMessengerEXT>(vkGetInstanceProcAddr(instance, "vkCreateDebugUtilsMessengerEXT"));
-    DestroyDebugUtilsMessengerEXT = reinterpret_cast<PFN_vkDestroyDebugUtilsMessengerEXT>(vkGetInstanceProcAddr(instance, "vkDestroyDebugUtilsMessengerEXT"));
+#if defined DILIGENT_USE_VOLK
+    CreateDebugUtilsMessengerEXT  = reinterpret_cast<PFN_vkCreateDebugUtilsMessengerEXT>(DiligentGetInstanceProcAddr(instance, "vkCreateDebugUtilsMessengerEXT"));
+    DestroyDebugUtilsMessengerEXT = reinterpret_cast<PFN_vkDestroyDebugUtilsMessengerEXT>(DiligentGetInstanceProcAddr(instance, "vkDestroyDebugUtilsMessengerEXT"));
+#else
+    CreateDebugUtilsMessengerEXT  = reinterpret_cast<PFN_vkCreateDebugUtilsMessengerEXT>(DILIGENT_VK_CALL(GetInstanceProcAddr(instance, "vkCreateDebugUtilsMessengerEXT")));
+    DestroyDebugUtilsMessengerEXT = reinterpret_cast<PFN_vkDestroyDebugUtilsMessengerEXT>(DILIGENT_VK_CALL(GetInstanceProcAddr(instance, "vkDestroyDebugUtilsMessengerEXT")));
+#endif
+
     VERIFY_EXPR(CreateDebugUtilsMessengerEXT != nullptr && DestroyDebugUtilsMessengerEXT != nullptr);
 
     VkDebugUtilsMessengerCreateInfoEXT DbgMessenger_CI = {};
@@ -163,18 +169,35 @@ void SetupDebugging(VkInstance                          instance,
     VERIFY(err == VK_SUCCESS, "Failed to create debug utils messenger");
     (void)err;
 
+
+#if defined DILIGENT_USE_VOLK
     // Load function pointers
-    SetDebugUtilsObjectNameEXT = reinterpret_cast<PFN_vkSetDebugUtilsObjectNameEXT>(vkGetInstanceProcAddr(instance, "vkSetDebugUtilsObjectNameEXT"));
+    SetDebugUtilsObjectNameEXT = reinterpret_cast<PFN_vkSetDebugUtilsObjectNameEXT>(DiligentGetInstanceProcAddr(instance, "vkSetDebugUtilsObjectNameEXT"));
     VERIFY_EXPR(SetDebugUtilsObjectNameEXT != nullptr);
-    SetDebugUtilsObjectTagEXT = reinterpret_cast<PFN_vkSetDebugUtilsObjectTagEXT>(vkGetInstanceProcAddr(instance, "vkSetDebugUtilsObjectTagEXT"));
+    SetDebugUtilsObjectTagEXT = reinterpret_cast<PFN_vkSetDebugUtilsObjectTagEXT>(DiligentGetInstanceProcAddr(instance, "vkSetDebugUtilsObjectTagEXT"));
     VERIFY_EXPR(SetDebugUtilsObjectTagEXT != nullptr);
 
-    QueueBeginDebugUtilsLabelEXT = reinterpret_cast<PFN_vkQueueBeginDebugUtilsLabelEXT>(vkGetInstanceProcAddr(instance, "vkQueueBeginDebugUtilsLabelEXT"));
+    QueueBeginDebugUtilsLabelEXT = reinterpret_cast<PFN_vkQueueBeginDebugUtilsLabelEXT>(DiligentGetInstanceProcAddr(instance, "vkQueueBeginDebugUtilsLabelEXT"));
     VERIFY_EXPR(QueueBeginDebugUtilsLabelEXT != nullptr);
-    QueueEndDebugUtilsLabelEXT = reinterpret_cast<PFN_vkQueueEndDebugUtilsLabelEXT>(vkGetInstanceProcAddr(instance, "vkQueueEndDebugUtilsLabelEXT"));
+    QueueEndDebugUtilsLabelEXT = reinterpret_cast<PFN_vkQueueEndDebugUtilsLabelEXT>(DiligentGetInstanceProcAddr(instance, "vkQueueEndDebugUtilsLabelEXT"));
     VERIFY_EXPR(QueueEndDebugUtilsLabelEXT != nullptr);
-    QueueInsertDebugUtilsLabelEXT = reinterpret_cast<PFN_vkQueueInsertDebugUtilsLabelEXT>(vkGetInstanceProcAddr(instance, "vkQueueInsertDebugUtilsLabelEXT"));
+    QueueInsertDebugUtilsLabelEXT = reinterpret_cast<PFN_vkQueueInsertDebugUtilsLabelEXT>(DiligentGetInstanceProcAddr(instance, "vkQueueInsertDebugUtilsLabelEXT"));
     VERIFY_EXPR(QueueInsertDebugUtilsLabelEXT != nullptr);
+#else
+    // Load function pointers
+    SetDebugUtilsObjectNameEXT = reinterpret_cast<PFN_vkSetDebugUtilsObjectNameEXT>(DILIGENT_VK_CALL(GetInstanceProcAddr(instance, "vkSetDebugUtilsObjectNameEXT"))));
+    VERIFY_EXPR(SetDebugUtilsObjectNameEXT != nullptr);
+    SetDebugUtilsObjectTagEXT = reinterpret_cast<PFN_vkSetDebugUtilsObjectTagEXT>(DILIGENT_VK_CALL(GetInstanceProcAddr(instance, "vkSetDebugUtilsObjectTagEXT")));
+    VERIFY_EXPR(SetDebugUtilsObjectTagEXT != nullptr);
+
+    QueueBeginDebugUtilsLabelEXT = reinterpret_cast<PFN_vkQueueBeginDebugUtilsLabelEXT>(DILIGENT_VK_CALL(GetInstanceProcAddr(instance, "vkQueueBeginDebugUtilsLabelEXT")));
+    VERIFY_EXPR(QueueBeginDebugUtilsLabelEXT != nullptr);
+    QueueEndDebugUtilsLabelEXT = reinterpret_cast<PFN_vkQueueEndDebugUtilsLabelEXT>(DILIGENT_VK_CALL(GetInstanceProcAddr(instance, "vkQueueEndDebugUtilsLabelEXT")));
+    VERIFY_EXPR(QueueEndDebugUtilsLabelEXT != nullptr);
+    QueueInsertDebugUtilsLabelEXT = reinterpret_cast<PFN_vkQueueInsertDebugUtilsLabelEXT>(DILIGENT_VK_CALL(GetInstanceProcAddr(instance, "vkQueueInsertDebugUtilsLabelEXT")));
+    VERIFY_EXPR(QueueInsertDebugUtilsLabelEXT != nullptr);
+#endif
+
 }
 
 void FreeDebugging(VkInstance instance)

@@ -1,6 +1,7 @@
 #ifndef EngineVkUtils_DEFINED
 #define EngineVkUtils_DEFINED
 
+#define VK_ENABLE_BETA_EXTENSIONS
 #define VK_NO_PROTOTYPES
 #include <vulkan/vulkan.h>
 
@@ -13,13 +14,17 @@
 #if defined DILIGENT_VULKAN_STATIC
 #    define DILIGENT_VK_CALL(X) vk##X;
 #else
-#    define DILIGENT_VK_CALL(X) VulkanUtilities::diligent_vk_interface.fFunctions.f##X;
+#    define DILIGENT_VK_CALL(X) VulkanUtilities::diligent_vk_interface.fFunctions.f##X
 #endif
 
 
 
 namespace VulkanUtilities
 {
+    
+    extern PFN_vkGetInstanceProcAddr DiligentGetInstanceProcAddr;
+
+    bool loadVulkanDll(PFN_vkGetInstanceProcAddr& GetInstanceProcAddr);
 
 /*
 Function used to obtain pointers to the vulkan functions throught 
@@ -61,7 +66,7 @@ public:
             fName(name), fSpecVersion(0) {}
 
         std::string fName;
-        uint32_t fSpecVersion;
+        uint32_t fSpecVersion = 0;
     };
 
 private:
@@ -96,6 +101,16 @@ private:
     private:
         FNPTR_TYPE fPtr;
     };
+public:
+    VulkanInterface(DiligentGetProc       getProc,
+                  VkInstance            instance,
+                  VkDevice              device,
+                  uint32_t              instanceVersion,
+                  uint32_t              physicalDeviceVersion,
+                  const VulkanExtensions* extensions);
+
+
+    VulkanInterface();
 
     /*
     Load from the getProc functions all the pointers related with global vulkan functions
@@ -126,19 +141,6 @@ private:
     Validade Global Functions
     */
     bool validateDeviceFunctions(uint32_t instanceVersion, uint32_t physicalDeviceVersion, const VulkanExtensions* extensions);
-
-public:
-    VulkanInterface(DiligentGetProc       getProc,
-                  VkInstance            instance,
-                  VkDevice              device,
-                  uint32_t              instanceVersion,
-                  uint32_t              physicalDeviceVersion,
-                  const VulkanExtensions* extensions);
-
-
-    VulkanInterface();
-
-
 
 
     // Validates that the GrVkInterface supports its advertised standard. This means the necessary
@@ -172,6 +174,8 @@ public:
         VkPtr<PFN_vkGetPhysicalDeviceFeatures>                    fGetPhysicalDeviceFeatures;
         VkPtr<PFN_vkGetPhysicalDeviceFormatProperties>            fGetPhysicalDeviceFormatProperties;
         VkPtr<PFN_vkGetPhysicalDeviceImageFormatProperties>       fGetPhysicalDeviceImageFormatProperties;
+        VkPtr<PFN_vkGetPhysicalDeviceMemoryProperties>            fGetPhysicalDeviceMemoryProperties;
+        VkPtr<PFN_vkGetPhysicalDeviceProperties>                  fGetPhysicalDeviceProperties;
         VkPtr<PFN_vkGetPhysicalDeviceQueueFamilyProperties>       fGetPhysicalDeviceQueueFamilyProperties;
         VkPtr<PFN_vkGetPhysicalDeviceSparseImageFormatProperties> fGetPhysicalDeviceSparseImageFormatProperties;
 #endif /* defined(VK_VERSION_1_0) */
@@ -932,7 +936,7 @@ public:
 /*
 This variable will be global and all diligent calls must go through it
 */ 
-    VulkanInterface diligent_vk_interface;
+   extern VulkanInterface diligent_vk_interface;
 
 }
 

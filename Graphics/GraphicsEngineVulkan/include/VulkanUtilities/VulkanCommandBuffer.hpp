@@ -703,7 +703,7 @@ public:
         VERIFY_EXPR(m_VkCmdBuffer != VK_NULL_HANDLE);
         VERIFY(m_State.RayTracingPipeline != VK_NULL_HANDLE, "No ray tracing pipeline bound");
 
-        DILIGENT_VK_CALL(CmdTraceRaysKHR(m_VkCmdBuffer, &RaygenShaderBindingTable, &MissShaderBindingTable, &HitShaderBindingTable, &CallableShaderBindingTable, width, height, depth))
+        DILIGENT_VK_CALL(CmdTraceRaysKHR(m_VkCmdBuffer, &RaygenShaderBindingTable, &MissShaderBindingTable, &HitShaderBindingTable, &CallableShaderBindingTable, width, height, depth));
 #else
         UNSUPPORTED("Ray tracing is not supported when vulkan library is linked statically");
 #endif
@@ -719,7 +719,7 @@ public:
         VERIFY_EXPR(m_VkCmdBuffer != VK_NULL_HANDLE);
         VERIFY(m_State.RayTracingPipeline != VK_NULL_HANDLE, "No ray tracing pipeline bound");
 
-        DILIGENT_VK_CALL(CmdTraceRaysIndirectKHR(m_VkCmdBuffer, &RaygenShaderBindingTable, &MissShaderBindingTable, &HitShaderBindingTable, &CallableShaderBindingTable, indirectDeviceAddress))
+        DILIGENT_VK_CALL(CmdTraceRaysIndirectKHR(m_VkCmdBuffer, &RaygenShaderBindingTable, &MissShaderBindingTable, &HitShaderBindingTable, &CallableShaderBindingTable, indirectDeviceAddress));
 #else
         UNSUPPORTED("Ray tracing is not supported when vulkan library is linked statically");
 #endif
@@ -733,7 +733,7 @@ public:
 
         // Pointer to the function may be null if validation layer is not enabled
         if (DILIGENT_VK_CALL(CmdBeginDebugUtilsLabelEXT) != nullptr)
-            DILIGENT_VK_CALL(CmdBeginDebugUtilsLabelEXT(m_VkCmdBuffer, &Label))
+            DILIGENT_VK_CALL(CmdBeginDebugUtilsLabelEXT(m_VkCmdBuffer, &Label));
 #else
         LOG_WARNING_MESSAGE_ONCE("Debug utils are not supported when vulkan library is linked statically");
 #endif
@@ -744,7 +744,7 @@ public:
 #if DILIGENT_USE_VOLK
         // Pointer to function may be null if validation layer is not enabled
         if (DILIGENT_VK_CALL(CmdEndDebugUtilsLabelEXT) != nullptr)
-            DILIGENT_VK_CALL(CmdEndDebugUtilsLabelEXT(m_VkCmdBuffer))
+            DILIGENT_VK_CALL(CmdEndDebugUtilsLabelEXT(m_VkCmdBuffer));
 #else
         LOG_WARNING_MESSAGE_ONCE("Debug utils are not supported when vulkan library is linked statically");
 #endif
@@ -758,7 +758,7 @@ public:
 
         // Pointer to the function may be null if validation layer is not enabled
         if (DILIGENT_VK_CALL(CmdInsertDebugUtilsLabelEXT) != nullptr)
-            DILIGENT_VK_CALL(CmdInsertDebugUtilsLabelEXT(m_VkCmdBuffer, &Label))
+            DILIGENT_VK_CALL(CmdInsertDebugUtilsLabelEXT(m_VkCmdBuffer, &Label));
 #else
         LOG_WARNING_MESSAGE_ONCE("Debug utils are not supported when vulkan library is linked statically");
 #endif
@@ -770,7 +770,7 @@ public:
 #if DILIGENT_USE_VOLK
         VERIFY_EXPR(m_VkCmdBuffer != VK_NULL_HANDLE);
 
-        DILIGENT_VK_CALL(CmdSetFragmentShadingRateKHR(m_VkCmdBuffer, &FragSize, CombinerOps))
+        DILIGENT_VK_CALL(CmdSetFragmentShadingRateKHR(m_VkCmdBuffer, &FragSize, CombinerOps));
 #else
         LOG_WARNING_MESSAGE_ONCE("Shading rate is not supported when vulkan library is linked statically");
 #endif

@@ -86,6 +86,23 @@ std::shared_ptr<VulkanInstance> VulkanInstance::Create(const CreateInfo& CI)
 VulkanInstance::VulkanInstance(const CreateInfo& CI) :
     m_pVkAllocator{CI.pVkAllocator}
 {
+#if DILIGENT_USE_VOLK
+
+    DiligentGetInstanceProcAddr = nullptr;
+
+    if (loadVulkanDll(DiligentGetInstanceProcAddr) != true)
+    {
+        LOG_ERROR_AND_THROW("Failed to load Vulkan.");
+    }
+
+    DiligentGetProc global_vulkan_pointer = [](const char* proc_name,
+                                                           VkInstance instance, VkDevice device) {
+        return DiligentGetInstanceProcAddr(instance, proc_name);
+    };
+
+    diligent_vk_interface.loadGlobalFunctions(global_vulkan_pointer);
+
+#endif
     {
         // Enumerate available layers
         uint32_t LayerCount = 0;
@@ -179,7 +196,7 @@ VulkanInstance::VulkanInstance(const CreateInfo& CI) :
 
     auto ApiVersion = CI.ApiVersion;
 #if DILIGENT_USE_VOLK
-    if (DILIGENT_VK_CALL(EnumerateInstanceVersion) != nullptr && ApiVersion > VK_API_VERSION_1_0)
+    if (VulkanUtilities::diligent_vk_interface.fFunctions.fEnumerateInstanceVersion != nullptr && ApiVersion > VK_API_VERSION_1_0)
     {
         uint32_t MaxApiVersion = 0;
         DILIGENT_VK_CALL(EnumerateInstanceVersion(&MaxApiVersion));
@@ -255,7 +272,9 @@ VulkanInstance::VulkanInstance(const CreateInfo& CI) :
     CHECK_VK_ERROR_AND_THROW(res, "Failed to create Vulkan instance");
 
 #if DILIGENT_USE_VOLK
-    volkLoadInstance(m_VkInstance);
+
+    //after we have 
+    diligent_vk_interface.loadInstanceFunctions(global_vulkan_pointer,m_VkInstance);
 #endif
 
     m_EnabledExtensions = std::move(InstanceExtensions);

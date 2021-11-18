@@ -4,6 +4,11 @@
 
 namespace VulkanUtilities
 {
+
+    PFN_vkGetInstanceProcAddr DiligentGetInstanceProcAddr = nullptr;
+
+    VulkanInterface diligent_vk_interface = VulkanInterface();
+
 #define ACQUIRE_PROC(name, instance, device) \
     fFunctions.f##name = reinterpret_cast<PFN_vk##name>(getProc("vk" #name, instance, device))
 
@@ -22,7 +27,7 @@ static int find_info(const std::vector<VulkanExtensions::Info>& infos, const cha
     std::string extensionStr(ext);
     auto it = infos.begin();
 
-    for (int i = 0; i < infos.size(); ++i){
+    for (size_t i = 0; i < infos.size(); ++i){
         if (it->fName.compare(extensionStr) == 0)
             return i;
         ++it;
@@ -380,6 +385,8 @@ bool VulkanInterface::validateInstanceFunctions(uint32_t instanceVersion, uint32
             nullptr == fFunctions.fGetPhysicalDeviceFeatures ||
             nullptr == fFunctions.fGetPhysicalDeviceFormatProperties ||
             nullptr == fFunctions.fGetPhysicalDeviceImageFormatProperties ||
+            nullptr == fFunctions.fGetPhysicalDeviceMemoryProperties ||
+            nullptr == fFunctions.fGetPhysicalDeviceProperties ||
             nullptr == fFunctions.fGetPhysicalDeviceQueueFamilyProperties ||
             nullptr == fFunctions.fGetPhysicalDeviceSparseImageFormatProperties)
             return false;
@@ -1068,8 +1075,7 @@ void VulkanInterface::loadDeviceLevel(DiligentGetProc getProc, VkDevice device)
     ACQUIRE_PROC_SUFFIX(GetRefreshCycleDuration, GOOGLE, VK_NULL_HANDLE, device);
 #endif /* defined(VK_GOOGLE_display_timing) */
 #if defined(VK_HUAWEI_invocation_mask)
-    ACQUIRE_PROC_SUFFIX(xxxx, xx, VK_NULL_HANDLE, device);
-    vkCmdBindInvocationMaskHUAWEI = (PFN_vkCmdBindInvocationMaskHUAWEI)load(context, "vkCmdBindInvocationMaskHUAWEI");
+    ACQUIRE_PROC_SUFFIX(CmdBindInvocationMask, HUAWEI, VK_NULL_HANDLE, device);
 #endif /* defined(VK_HUAWEI_invocation_mask) */
 #if defined(VK_HUAWEI_subpass_shading)
     ACQUIRE_PROC_SUFFIX(CmdSubpassShading, HUAWEI, VK_NULL_HANDLE, device);
@@ -2358,10 +2364,15 @@ VulkanInterface::VulkanInterface(DiligentGetProc getProc, VkInstance instance, V
     loadGlobalFunctions(getProc);
 
     // Instance Procs.
-    loadInstanceFunctions(getProc,instance);
+    loadInstanceFunctions(getProc, instance);
 
     // Device Procs.
-    loadDeviceLevel(getProc,device);
+    loadDeviceLevel(getProc, device);
+};
+
+VulkanInterface::VulkanInterface()
+{
+
 };
 
 bool VulkanInterface::validate(uint32_t instanceVersion, uint32_t physicalDeviceVersion, const VulkanExtensions* extensions)
@@ -2374,5 +2385,36 @@ bool VulkanInterface::validate(uint32_t instanceVersion, uint32_t physicalDevice
 
     return correctly_setup;
 };
+
+bool loadVulkanDll(PFN_vkGetInstanceProcAddr& GetInstanceProcAddr)
+{
+#if defined(_WIN32)
+    HMODULE module = LoadLibraryA("vulkan-1.dll");
+    if (!module)
+        return false;
+
+    // note: function pointer is cast through void function pointer to silence cast-function-type warning on gcc8
+    GetInstanceProcAddr = (PFN_vkGetInstanceProcAddr)(void (*)(void))GetProcAddress(module, "vkGetInstanceProcAddr");
+#elif defined(__APPLE__)
+    void* module = dlopen("libvulkan.dylib", RTLD_NOW | RTLD_LOCAL);
+    if (!module)
+        module = dlopen("libvulkan.1.dylib", RTLD_NOW | RTLD_LOCAL);
+    if (!module)
+        module = dlopen("libMoltenVK.dylib", RTLD_NOW | RTLD_LOCAL);
+    if (!module)
+        return false;
+
+    GetInstanceProcAddr = (PFN_vkGetInstanceProcAddr)dlsym(module, "vkGetInstanceProcAddr");
+#else
+    void* module = dlopen("libvulkan.so.1", RTLD_NOW | RTLD_LOCAL);
+    if (!module)
+        module = dlopen("libvulkan.so", RTLD_NOW | RTLD_LOCAL);
+    if (!module)
+        return false;
+
+    GetInstanceProcAddr = (PFN_vkGetInstanceProcAddr)dlsym(module, "vkGetInstanceProcAddr");
+#endif
+    return true;
+}
 
 } // namespace VulkanUtilities
